@@ -8,6 +8,8 @@ include: where the header in
 src: where the source code in
 component: where the libs in
 
+If you need to program in CLion with esp-idf, you need to add espidf_source.bat file in the Environment file in Settings | Build, Execution, Deployment | Toolchain(https://www.jetbrains.com/help/clion/esp-idf.html#cmake-setup)
+
 Tips:
 
 1. You may not need to set the python path in the CMakeList under ESP_EE3 folder, if you want to use it change it to your own path
