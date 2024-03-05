@@ -6,7 +6,6 @@
 static const char* TAG = "RC522";
 static rc522_handle_t scanner;
 static const gpio_num_t buzzer_pin = GPIO_NUM_4;
-mcpwm_cmpr_handle_t comparator;
 bool correct_key = false;
 bool restart_key = false;
 
