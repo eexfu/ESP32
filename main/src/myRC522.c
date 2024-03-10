@@ -4,8 +4,8 @@
 #include "include/myServo.h"
 
 static const char* TAG = "RC522";
-static rc522_handle_t scanner;
 static const gpio_num_t buzzer_pin = GPIO_NUM_4;
+static const gpio_num_t rc522_reset_pin = GPIO_NUM_6;
 bool correct_key = false;
 bool restart_key = false;
 
@@ -29,7 +29,7 @@ static void rc522_handler(void* arg, esp_event_base_t base, int32_t event_id, vo
                 rotate_servo(-90);
             }
             else if(tag->serial_number == 000000000000){
-                //TODO need to change the serial number later
+                //TODO need to decide the serial number of reset key later
                 printf("restart key\n");
                 fflush(stdout);
                 restart_key = true;
@@ -50,8 +50,8 @@ static void rc522_handler(void* arg, esp_event_base_t base, int32_t event_id, vo
 
 esp_err_t rc522_power_down() {
     esp_err_t ret;
-    gpio_set_direction(GPIO_NUM_6, GPIO_MODE_OUTPUT);
-    ret = gpio_set_level(GPIO_NUM_6,0);
+    gpio_set_direction(rc522_reset_pin, GPIO_MODE_OUTPUT);
+    ret = gpio_set_level(rc522_reset_pin,0);
     return ret;
 }
 
@@ -70,9 +70,10 @@ void close_buzzer(){
     gpio_set_level(buzzer_pin, 0);
 }
 
-esp_err_t rc522_init(){
+esp_err_t rc522_init(rc522_handle_t* scanner){
+    printf("Start RC522 Init\n");
     //reset rc522
-    gpio_set_level(GPIO_NUM_6,1);
+    gpio_set_level(rc522_reset_pin,1);
 
     rc522_config_t config = {
             .spi.host = SPI3_HOST,
@@ -81,27 +82,38 @@ esp_err_t rc522_init(){
     };
 
     esp_err_t ret;
-    rc522_create(&config, &scanner);
-    ret = rc522_register_events(scanner, RC522_EVENT_ANY, rc522_handler, NULL);
+    ret = rc522_create(&config, scanner);
+    if(ret != ESP_OK)   return ret;
+    if(scanner != NULL){
+        printf("scanner is not null\n");
+    } else{
+        printf("scanner is null\n");
+    }
+    ret = rc522_register_events(*scanner, RC522_EVENT_ANY, rc522_handler, NULL);
+    printf("Done RC522 Init\n");
     return ret;
 }
 
-esp_err_t myRC522_start(){
+esp_err_t myRC522_start(rc522_handle_t* scanner){
     esp_err_t ret;
-    //TODO need to be stoped after it detect the correct key
-    ret = rc522_start(scanner);
+    ret = rc522_start(*scanner);
     if(ret != ESP_OK)   return ret;
-    while(1)
+    while(1){
         if(correct_key) break;
+        vTaskDelay(1000/portTICK_PERIOD_MS);
+    }
+    ret = rc522_pause(*scanner);
     return ret;
 }
 
-esp_err_t detectRestartTag(){
+esp_err_t detectRestartTag(rc522_handle_t* scanner){
     esp_err_t ret;
-    //TODO need to be stoped after it detect the correct key
-    ret = rc522_start(scanner);
+    ret = rc522_start(*scanner);
     if(ret != ESP_OK)   return ret;
-    while(1)
+    while(1){
         if(restart_key) break;
+        vTaskDelay(1000/portTICK_PERIOD_MS);
+    }
+    ret = rc522_pause(*scanner);
     return ret;
 }

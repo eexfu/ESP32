@@ -71,6 +71,8 @@ StateFunc stateTable[NUM_STATES] = {
         doStop
 };
 //********************************************FSM DEFINITION END******************************************
+rc522_handle_t scanner;
+static const int rc522_servo_pin = 5;
 
 esp_err_t init();
 
@@ -93,49 +95,56 @@ esp_err_t init(){
     ret = buzzer_init();
     if(ret != ESP_OK)   return ret;
 
-    servo_init();
+    servo_init(rc522_servo_pin);
 
-    ret = rc522_init();
-    if(ret != ESP_OK)   return ret;
+    ret = rc522_init(&scanner);
 
     return ret;
 }
 
 //*******************************************FSM transfer function*****************************************
 State doInit(Event* event) {
+    printf("start init\n");
     if(*event != EVENT_INIT) return STATE_STOP;
 
-    if(init()){
+    if(init() == ESP_OK){
+        printf("done init\n");
         *event = EVENT_INIT_FINISHED;
         return STATE_NFC_READER;
     }
-    else return STATE_INIT;
+    printf("init fail\n");
+    return STATE_INIT;
 }
 
 State doNFCReader(Event* event){
+    printf("start NFC\n");
     if(*event != EVENT_INIT_FINISHED)  return STATE_STOP;
 
-    if(myRC522_start()){
+    if(myRC522_start(&scanner) == ESP_OK){
         *event = EVENT_NFC_READER_FINISHED;
         return STATE_NFC_TO_PIANO;
     }
+    printf("done NFC\n");
     return STATE_NFC_READER;
 }
 
 State doNFCToPiano(Event* event){
+    printf("start NFCToPiano\n");
     if(*event != EVENT_NFC_READER_FINISHED) return STATE_STOP;
 
-    if(notifyPiano()){
+    if(notifyPiano() == ESP_OK){
         *event = EVENT_NFC_TO_PIANO_FINISHED;
+        printf("done NFCToPiano\n");
         return STATE_PIANO;
     }
+    printf("fail NFCToPiano\n");
     return STATE_PIANO;
 }
 
 State doPiano(Event* event){
     if(*event != EVENT_NFC_TO_PIANO_FINISHED) return STATE_STOP;
 
-    if(isPianoFinished()){
+    if(isPianoFinished() == ESP_OK){
         *event = EVENT_PIANO_FINISHED;
         return STATE_PIANO_TO_LASER;
     }
@@ -145,7 +154,7 @@ State doPiano(Event* event){
 State doPianoToLaser(Event *event){
     if(*event != EVENT_PIANO_FINISHED)  return STATE_STOP;
 
-    if(isReadyForLaser()){
+    if(isReadyForLaser() == ESP_OK){
         *event = EVENT_PIANO_TO_LASER_FINISHED;
         return STATE_LASER;
     }
@@ -182,7 +191,7 @@ State doFinish(Event* event){
 State doStop(Event* event){
     if(*event != EVENT_FINISH_FINISHED) return STATE_STOP;
 
-    if(detectRestartTag()){
+    if(detectRestartTag(&scanner) == ESP_OK){
         *event = EVENT_RESTART;
         return STATE_NFC_READER;
     }

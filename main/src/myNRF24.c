@@ -9,7 +9,7 @@ bool piano_finished = false;
 bool ready_for_laser = false;
 
 NRF24_t nrf24_init(){
-    ESP_LOGI(pcTaskGetName(0), "Start");
+    printf("Start NRF24 Init\n");
     Nrf24_init(&dev);
     uint8_t payload = 32;
     uint8_t channel = CONFIG_RADIO_CHANNEL;
@@ -27,6 +27,7 @@ NRF24_t nrf24_init(){
 
     //Print settings
     Nrf24_printDetails(&dev);
+    printf("Done NRF24 Init\n");
     return dev;
 }
 
@@ -78,8 +79,10 @@ esp_err_t notifyPiano(){
     esp_err_t ret;
     ret = xTaskCreate(&sender, "SENDER", 1024*3, NULL, 2, NULL);
     if(ret != ESP_OK)    return ret;
-    while (1)
+    while (1){
         if(piano_receive)   break;
+        vTaskDelay(1000/portTICK_PERIOD_MS);
+    }
     return ret;
 }
 
@@ -95,6 +98,7 @@ esp_err_t isPianoFinished(){
 
 esp_err_t isReadyForLaser(){
     esp_err_t ret;
+    //TODO stop the task after we receive the signal of pianoFinished
     ret = xTaskCreate(&receiver, "RECEIVER", 1024*3, NULL, 2, NULL);
     if(ret != ESP_OK)   return ret;
     while (1)
