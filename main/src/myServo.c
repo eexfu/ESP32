@@ -10,7 +10,6 @@
 #define SERVO_TIMEBASE_RESOLUTION_HZ 1000000  // 1MHz, 1us per tick
 #define SERVO_TIMEBASE_PERIOD        20000    // 20000 ticks, 20ms
 
-mcpwm_cmpr_handle_t comparator;
 static const char* TAG = "Servo";
 
 static inline uint32_t angle_to_compare(int angle)
@@ -18,7 +17,7 @@ static inline uint32_t angle_to_compare(int angle)
     return (angle - SERVO_MIN_DEGREE) * (SERVO_MAX_PULSEWIDTH_US - SERVO_MIN_PULSEWIDTH_US) / (SERVO_MAX_DEGREE - SERVO_MIN_DEGREE) + SERVO_MIN_PULSEWIDTH_US;
 };
 
-esp_err_t servo_init(int servo_pin) {//copy from MCPWM RC Servo Control Example
+esp_err_t servo_init(int servo_pin, mcpwm_cmpr_handle_t* comparator) {//copy from MCPWM RC Servo Control Example
     ESP_LOGI(TAG, "Create timer and operator");
     mcpwm_timer_handle_t timer = NULL;
     mcpwm_timer_config_t timer_config = {
@@ -40,11 +39,11 @@ esp_err_t servo_init(int servo_pin) {//copy from MCPWM RC Servo Control Example
     ESP_ERROR_CHECK(mcpwm_operator_connect_timer(oper, timer));
 
     ESP_LOGI(TAG, "Create comparator and generator from the operator");
-    comparator = NULL;
+    *comparator = NULL;
     mcpwm_comparator_config_t comparator_config = {
             .flags.update_cmp_on_tez = true,
     };
-    ESP_ERROR_CHECK(mcpwm_new_comparator(oper, &comparator_config, &comparator));
+    ESP_ERROR_CHECK(mcpwm_new_comparator(oper, &comparator_config, comparator));
 
     mcpwm_gen_handle_t generator = NULL;
     mcpwm_generator_config_t generator_config = {
@@ -53,7 +52,7 @@ esp_err_t servo_init(int servo_pin) {//copy from MCPWM RC Servo Control Example
     ESP_ERROR_CHECK(mcpwm_new_generator(oper, &generator_config, &generator));
 
     // set the initial compare value, so that the servo will spin to the center position
-    ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparator, angle_to_compare(0)));
+    ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(*comparator, angle_to_compare(0)));
 
     ESP_LOGI(TAG, "Set generator action on timer and compare event");
     // go high on counter empty
@@ -64,17 +63,17 @@ esp_err_t servo_init(int servo_pin) {//copy from MCPWM RC Servo Control Example
     // go low on compare threshold
     ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(generator,
                                                                 MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP,
-                                                                                               comparator,
+                                                                                               *comparator,
                                                                                                MCPWM_GEN_ACTION_LOW)));
 
     ESP_LOGI(TAG, "Enable and start timer");
     ESP_ERROR_CHECK(mcpwm_timer_enable(timer));
     ESP_ERROR_CHECK(mcpwm_timer_start_stop(timer, MCPWM_TIMER_START_NO_STOP));
 
-    ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparator, angle_to_compare(-90)));
+    ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(*comparator, angle_to_compare(-90)));
     return ESP_OK;
 }
 
-void rotate_servo(int angle){
-    ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparator, angle_to_compare(angle)));
+void rotate_servo(int angle, mcpwm_cmpr_handle_t* comparator){
+    ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(*comparator, angle_to_compare(angle)));
 }

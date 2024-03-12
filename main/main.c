@@ -1,6 +1,8 @@
 #include "include/myRC522.h"
 #include "include/myServo.h"
 #include "include/myNRF24.h"
+#include "include/mySpeaker.h"
+#include "driver/gptimer.h"
 
 //******************************************FSM definition****************************************
 // define state enum
@@ -71,8 +73,9 @@ StateFunc stateTable[NUM_STATES] = {
         doStop
 };
 //********************************************FSM DEFINITION END******************************************
+NRF24_t dev;
+gptimer_handle_t timer_handle;
 rc522_handle_t scanner;
-static const int rc522_servo_pin = 5;
 
 esp_err_t init();
 
@@ -90,12 +93,11 @@ esp_err_t init(){
     ret = rc522_power_down();
     if(ret != ESP_OK)   return ret;
 
-    nrf24_init();
-
-    ret = buzzer_init();
+    ret = nrf24_init(&dev);
     if(ret != ESP_OK)   return ret;
 
-    servo_init(rc522_servo_pin);
+    ret = speaker_init(&timer_handle);
+    if(ret != ESP_OK)   return ret;
 
     ret = rc522_init(&scanner);
 
@@ -132,7 +134,7 @@ State doNFCToPiano(Event* event){
     printf("start NFCToPiano\n");
     if(*event != EVENT_NFC_READER_FINISHED) return STATE_STOP;
 
-    if(notifyPiano() == ESP_OK){
+    if(notifyPiano(&dev) == ESP_OK){
         *event = EVENT_NFC_TO_PIANO_FINISHED;
         printf("done NFCToPiano\n");
         return STATE_PIANO;
@@ -144,7 +146,7 @@ State doNFCToPiano(Event* event){
 State doPiano(Event* event){
     if(*event != EVENT_NFC_TO_PIANO_FINISHED) return STATE_STOP;
 
-    if(isPianoFinished() == ESP_OK){
+    if(isPianoFinished(&timer_handle, &dev) == ESP_OK){
         *event = EVENT_PIANO_FINISHED;
         return STATE_PIANO_TO_LASER;
     }
@@ -154,7 +156,7 @@ State doPiano(Event* event){
 State doPianoToLaser(Event *event){
     if(*event != EVENT_PIANO_FINISHED)  return STATE_STOP;
 
-    if(isReadyForLaser() == ESP_OK){
+    if(isReadyForLaser(&dev) == ESP_OK){
         *event = EVENT_PIANO_TO_LASER_FINISHED;
         return STATE_LASER;
     }
