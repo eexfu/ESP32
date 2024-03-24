@@ -21,6 +21,16 @@ The basic struct of this project is:
 
 |component
 
+|res
+
+|-- piano_note
+
+|  |-- c4.txt
+
+|  |-- d4.txt
+
+|  |-- ...
+
 |main
 
 |-- main.c
@@ -33,6 +43,8 @@ The basic struct of this project is:
 
 |  |-- myServo.h
 
+|  |-- ...
+
 |-- src
 
 |  |-- myNRF24.c
@@ -40,3 +52,5 @@ The basic struct of this project is:
 |  |-- myRC522.c
 
 |  |-- myServo.c
+
+|  |-- ...
