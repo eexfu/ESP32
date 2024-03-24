@@ -1,4 +1,4 @@
-#include "mirf.h"
+#include "../component/mirf/mirf.h"
 #include "driver/gptimer.h"
 
 typedef struct {
