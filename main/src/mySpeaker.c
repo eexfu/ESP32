@@ -22,7 +22,7 @@ static const char *TAG = "SDM";
 static int8_t* sine_wave;
 int number_of_points;
 
-static bool IRAM_ATTR timer_callback(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx){
+static bool IRAM_ATTR timer_callback(gptimer_handle_t timer, const gptimer_alarm_event_data_t *data, void *user_ctx){
     static uint32_t cnt = 0;
     sdm_channel_handle_t sdm_chan = (sdm_channel_handle_t)user_ctx;
     /* Set the pulse density */
@@ -104,11 +104,11 @@ void timer(void* param){
     gptimer_stop(timer_handle);
 }
 
-esp_err_t play_speaker(int frequency, int amplitude, gptimer_handle_t* timer_handle){
+esp_err_t play_speaker_sine(int frequency, int amplitude, gptimer_handle_t* timer_handle){
     esp_err_t ret;
-    if(number_of_points <= 1) printf("Sine wave frequency is too high");
 
     number_of_points = MHZ / (frequency * CALLBACK_INTERVAL_US);
+    if(number_of_points <= 1) printf("Sine wave frequency is too high");
 
     /* Assign sine wave data */
     for (int i = 0; i < number_of_points; i++) {
@@ -117,5 +117,62 @@ esp_err_t play_speaker(int frequency, int amplitude, gptimer_handle_t* timer_han
     /* Start the GPTimer */
     ESP_LOGI(TAG, "Speaker start");
     ret = xTaskCreate((TaskFunction_t) &timer, "TIMER", 1024 * 3, (void *)&timer_handle, 2, NULL);
+    return ret;
+}
+
+esp_err_t play_speaker_audio(const char* file_name, gptimer_handle_t* timer_handle) {
+    FILE* file;
+    int8_t* audio_samples;
+    int audio_samples_count;
+    esp_err_t ret;
+
+    // open file
+    file = fopen(file_name, "rb");
+    if (!file) {
+        ESP_LOGE(TAG, "Failed to open file");
+        return ESP_FAIL;
+    }
+
+//    // read audio_samples_count
+//    if (fread(&audio_samples_count, sizeof(int), 1, file) != 1) {
+//        ESP_LOGE(TAG, "Failed to read audio samples count");
+//        fclose(file);
+//        return ESP_FAIL;
+//    }
+//
+//    // verify audio_samples_count
+//    if (audio_samples_count <= 0) {
+//        ESP_LOGE(TAG, "Audio sample count is invalid");
+//        fclose(file);
+//        return ESP_FAIL;
+//    }
+
+    audio_samples_count = 20000;
+
+    // allocate memory
+    audio_samples = (int8_t*)malloc(audio_samples_count * sizeof(int8_t));
+    if (!audio_samples) {
+        ESP_LOGE(TAG, "Failed to allocate memory for audio samples");
+        fclose(file);
+        return ESP_FAIL;
+    }
+
+    // read data
+    if (fread(audio_samples, sizeof(int8_t), audio_samples_count, file) != audio_samples_count) {
+        ESP_LOGE(TAG, "Failed to read audio samples");
+        free(audio_samples);
+        fclose(file);
+        return ESP_FAIL;
+    }
+
+    fclose(file);
+
+    sine_wave = audio_samples;
+
+    /* Start the GPTimer */
+    ESP_LOGI(TAG, "Speaker start");
+    ret = xTaskCreate((TaskFunction_t)timer, "TIMER", 1024 * 3, (void*)timer_handle, 2, NULL);
+
+    free(audio_samples);
     return ret;
 }

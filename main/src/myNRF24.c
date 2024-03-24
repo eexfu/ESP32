@@ -83,14 +83,14 @@ void receiver(void *pvParameters)
                 ready_for_laser = true;
 //                vTaskDelete(NULL);
             }
-            else if(strncmp((char*)buf, "do", 2) != 0) play_speaker(261, amplitude, timer_handle);
-            else if(strncmp((char*)buf, "re", 2) != 0) play_speaker(294, amplitude, timer_handle);
-            else if(strncmp((char*)buf, "mi", 2) != 0) play_speaker(330, amplitude, timer_handle);
-            else if(strncmp((char*)buf, "fa", 2) != 0) play_speaker(349, amplitude, timer_handle);
-            else if(strncmp((char*)buf, "so", 2) != 0) play_speaker(392, amplitude, timer_handle);
-            else if(strncmp((char*)buf, "la", 2) != 0) play_speaker(440, amplitude, timer_handle);
-            else if(strncmp((char*)buf, "xi", 2) != 0) play_speaker(494, amplitude, timer_handle);
-            else if(strncmp((char*)buf, "up_do", 2) != 0) play_speaker(553, amplitude, timer_handle);
+            else if(strncmp((char*)buf, "do", 2) != 0) play_speaker_audio("../../res/piano_note/c4.txt", timer_handle);
+            else if(strncmp((char*)buf, "re", 2) != 0) play_speaker_audio("../../res/piano_note/d4.txt", timer_handle);
+            else if(strncmp((char*)buf, "mi", 2) != 0) play_speaker_audio("../../res/piano_note/e4.txt", timer_handle);
+            else if(strncmp((char*)buf, "fa", 2) != 0) play_speaker_audio("../../res/piano_note/f4.txt", timer_handle);
+            else if(strncmp((char*)buf, "so", 2) != 0) play_speaker_audio("../../res/piano_note/g4.txt", timer_handle);
+            else if(strncmp((char*)buf, "la", 2) != 0) play_speaker_audio("../../res/piano_note/a4.txt", timer_handle);
+            else if(strncmp((char*)buf, "xi", 2) != 0) play_speaker_audio("../../res/piano_note/b4.txt", timer_handle);
+            else if(strncmp((char*)buf, "up_do", 2) != 0) play_speaker_audio("../../res/piano_note/c5.txt", timer_handle);
             else ;
             //ESP_LOG_BUFFER_HEXDUMP(pcTaskGetName(0), buf, payload, ESP_LOG_INFO);
         }
