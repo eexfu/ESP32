@@ -10,7 +10,7 @@
 
 #define MHZ                             (1000000)
 #define CONST_PI                        (3.1416f)           // Constant of PI, used for calculating the sine wave
-#define SIGMA_DELTA_GPIO_NUM    (1)                 // Select GPIO_NUM_0 as the sigma-delta output pin
+#define SIGMA_DELTA_GPIO_NUM    (3)                 // Select GPIO_NUM_0 as the sigma-delta output pin
 #define OVER_SAMPLE_RATE        (10 * MHZ)          // 10 MHz over sample rate
 #define TIMER_RESOLUTION        (1  * MHZ)          // 1 MHz timer counting resolution
 #define CALLBACK_INTERVAL_US    (100)               // 100 us interval of each timer callback
@@ -102,6 +102,8 @@ void timer(void* param){
     gptimer_start(timer_handle);
     vTaskDelay(pdMS_TO_TICKS(1000));
     gptimer_stop(timer_handle);
+    free(sine_wave);
+    vTaskDelete(NULL);
 }
 
 esp_err_t play_speaker_sine(int frequency, int amplitude, gptimer_handle_t* timer_handle){
@@ -110,13 +112,15 @@ esp_err_t play_speaker_sine(int frequency, int amplitude, gptimer_handle_t* time
     number_of_points = MHZ / (frequency * CALLBACK_INTERVAL_US);
     if(number_of_points <= 1) printf("Sine wave frequency is too high");
 
+    int8_t* audio_samples = (int8_t*)malloc(number_of_points * sizeof(int8_t));
     /* Assign sine wave data */
     for (int i = 0; i < number_of_points; i++) {
-        sine_wave[i] = (int8_t)((sin(2 * (float)i * CONST_PI / number_of_points)) * amplitude);
+        audio_samples[i] = (int8_t)((sin(2 * (float)i * CONST_PI / number_of_points)) * amplitude);
     }
+    sine_wave = audio_samples;
     /* Start the GPTimer */
     ESP_LOGI(TAG, "Speaker start");
-    ret = xTaskCreate((TaskFunction_t) &timer, "TIMER", 1024 * 3, (void *)&timer_handle, 2, NULL);
+    ret = xTaskCreate((TaskFunction_t) &timer, "TIMER", 1024 * 3, (void *)timer_handle, 2, NULL);
     return ret;
 }
 
@@ -127,7 +131,7 @@ esp_err_t play_speaker_audio(const char* file_name, gptimer_handle_t* timer_hand
     esp_err_t ret;
 
     // open file
-    file = fopen(file_name, "rb");
+    file = fopen(file_name, "r");
     if (!file) {
         ESP_LOGE(TAG, "Failed to open file");
         return ESP_FAIL;
@@ -172,7 +176,5 @@ esp_err_t play_speaker_audio(const char* file_name, gptimer_handle_t* timer_hand
     /* Start the GPTimer */
     ESP_LOGI(TAG, "Speaker start");
     ret = xTaskCreate((TaskFunction_t)timer, "TIMER", 1024 * 3, (void*)timer_handle, 2, NULL);
-
-    free(audio_samples);
     return ret;
 }

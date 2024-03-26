@@ -68,8 +68,6 @@ void receiver(void *pvParameters)
         Nrf24_getData(&dev, buf);
     }
 
-    int amplitude = 127;
-
     while(1) {
         //When the program is received, the received data is output from the serial port
         if (Nrf24_dataReady(&dev)) {
@@ -91,7 +89,7 @@ void receiver(void *pvParameters)
             else if(strncmp((char*)buf, "la", 2) != 0) play_speaker_audio("../../res/piano_note/a4.txt", timer_handle);
             else if(strncmp((char*)buf, "xi", 2) != 0) play_speaker_audio("../../res/piano_note/b4.txt", timer_handle);
             else if(strncmp((char*)buf, "up_do", 2) != 0) play_speaker_audio("../../res/piano_note/c5.txt", timer_handle);
-            else ;
+            else play_speaker_audio("../../res/piano_note/c4.txt", timer_handle);
             //ESP_LOG_BUFFER_HEXDUMP(pcTaskGetName(0), buf, payload, ESP_LOG_INFO);
         }
         vTaskDelay(1);

@@ -3,6 +3,7 @@
 #include "include/myNRF24.h"
 #include "include/mySpeaker.h"
 #include "driver/gptimer.h"
+#include "mySPIFFS.h"
 
 //******************************************FSM definition****************************************
 // define state enum
@@ -93,13 +94,15 @@ esp_err_t init(){
     ret = rc522_power_down();
     if(ret != ESP_OK)   return ret;
 
-    ret = nrf24_init(&dev);
-    if(ret != ESP_OK)   return ret;
+//    ret = nrf24_init(&dev);
+//    if(ret != ESP_OK)   return ret;
+
+    init_spiffs();
 
     ret = speaker_init(&timer_handle);
     if(ret != ESP_OK)   return ret;
 
-    ret = rc522_init(&scanner);
+//    ret = rc522_init(&scanner);
 
     return ret;
 }
@@ -110,6 +113,11 @@ State doInit(Event* event) {
     if(*event != EVENT_INIT) return STATE_STOP;
 
     if(init() == ESP_OK){
+        while(1){
+//            play_speaker_sine(1000, 127, &timer_handle);
+            play_speaker_audio("/spiffs/sine.txt", &timer_handle);
+            vTaskDelay(2000);
+        }
         printf("done init\n");
         *event = EVENT_INIT_FINISHED;
         return STATE_NFC_READER;
