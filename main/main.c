@@ -2,6 +2,8 @@
 #include "include/myServo.h"
 #include "include/myNRF24.h"
 #include "include/mySpeaker.h"
+#include "include/myIRSensor.h"
+#include "include/myElectromagnet.h"
 #include "driver/gptimer.h"
 
 //******************************************FSM definition****************************************
@@ -80,8 +82,11 @@ rc522_handle_t scanner;
 esp_err_t init();
 
 void app_main(void) {
-    State currentState = STATE_INIT;
-    Event event = EVENT_INIT;
+    //State currentState = STATE_INIT;
+    //Event event = EVENT_INIT;
+
+    State currentState = EVENT_SIMON_TO_DISTANCE_FINISHED; //override for testing
+    Event event = STATE_DISTANCE;
 
     while (currentState != STATE_STOP) {
         currentState = stateTable[currentState](&event);
@@ -100,6 +105,9 @@ esp_err_t init(){
     if(ret != ESP_OK)   return ret;
 
     ret = rc522_init(&scanner);
+    if(ret != ESP_OK)   return ret;
+
+    ret = intit_electromagnet(&scanner);
 
     return ret;
 }
@@ -178,11 +186,31 @@ State doSimon(Event* event){
 }
 
 State doSimonToDistance(Event* event){
+    if (*event != EVENT_SIMON_FINISHED) return STATE_STOP;
+
+    bool ret = setEM(0);
+    if (ret == ESP_OK) {
+        printf("simon to distance done, EM should be off");
+        *event = EVENT_SIMON_TO_DISTANCE_FINISHED;
+        return STATE_DISTANCE;
+    }
+
     return STATE_DISTANCE;
 }
 
 State doDistance(Event* event){
-    printf("Distance running...\n");
+    if (*event != EVENT_SIMON_TO_DISTANCE_FINISHED) return STATE_STOP;
+    printf("start distance");
+    //call func
+    bool ret = irSensorMain(); //fc only returns after game is done :), maybe pass speaker handel to this?
+    if (ret == true) {
+        *event = EVENT_DISTANCE_FINISHED;
+    } else {
+        printf("Not supposed to happen...");
+    }
+    // set next state
+
+    printf("Distance done...\n");
     return STATE_FINISH;
 }
 
