@@ -1,4 +1,4 @@
-#include "rc522.h"
+#include "../component/esp_idf_rc522/include/rc522.h"
 
 esp_err_t rc522_power_down();
 esp_err_t buzzer_init();

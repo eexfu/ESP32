@@ -4,6 +4,8 @@ idf_component_register(SRCS
         "src/myNRF24.c"
         "src/mySpeaker.c"
         "src/mySPIFFS.c"
+        "src/myIRSensor.c"
+        "src/myElectromanget.c"
         "main.c"
         INCLUDE_DIRS "."
         "./include")
