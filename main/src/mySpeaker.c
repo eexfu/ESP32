@@ -10,7 +10,7 @@
 
 #define MHZ                             (1000000)
 #define CONST_PI                        (3.1416f)           // Constant of PI, used for calculating the sine wave
-#define SIGMA_DELTA_GPIO_NUM    (3)                 // Select GPIO_NUM_0 as the sigma-delta output pin
+#define SIGMA_DELTA_GPIO_NUM    (3)                 // Select GPIO_NUM_3 as the sigma-delta output pin
 #define OVER_SAMPLE_RATE        (10 * MHZ)          // 10 MHz over sample rate
 #define TIMER_RESOLUTION        (1  * MHZ)          // 1 MHz timer counting resolution
 #define CALLBACK_INTERVAL_US    (100)               // 100 us interval of each timer callback
@@ -20,7 +20,10 @@ ESP_STATIC_ASSERT(CALLBACK_INTERVAL_US >= 7, "Timer callback interval is too sho
 
 static const char *TAG = "SDM";
 static int8_t* sine_wave;
-int number_of_points;
+static int number_of_points;
+static int audio_samples_count = 20000;
+static volatile bool playbackFinished = false;
+static volatile bool playing = false;
 
 static bool IRAM_ATTR timer_callback(gptimer_handle_t timer, const gptimer_alarm_event_data_t *data, void *user_ctx){
     static uint32_t cnt = 0;
@@ -30,6 +33,10 @@ static bool IRAM_ATTR timer_callback(gptimer_handle_t timer, const gptimer_alarm
     /* Loop the sine wave data buffer */
     if (cnt >= number_of_points) {
         cnt = 0;
+        if(number_of_points == audio_samples_count){
+            playbackFinished = true;
+            gptimer_stop(timer);
+        }
     }
     return false;
 }
@@ -106,16 +113,29 @@ void timer(void* param){
     vTaskDelete(NULL);
 }
 
+void timer_audio(void* param){
+    gptimer_handle_t timer_handle = *(gptimer_handle_t*)param;
+    gptimer_start(timer_handle);
+    while (!playbackFinished){
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+    playbackFinished = false;
+    free(sine_wave);
+    playing = false;
+    vTaskDelete(NULL);
+}
+
 esp_err_t play_speaker_sine(int frequency, int amplitude, gptimer_handle_t* timer_handle){
     esp_err_t ret;
 
-    number_of_points = MHZ / (frequency * CALLBACK_INTERVAL_US);
+    number_of_points = MHZ / (frequency * CALLBACK_INTERVAL_US);  //freq = 1000Hz -> 10
     if(number_of_points <= 1) printf("Sine wave frequency is too high");
 
     int8_t* audio_samples = (int8_t*)malloc(number_of_points * sizeof(int8_t));
     /* Assign sine wave data */
     for (int i = 0; i < number_of_points; i++) {
         audio_samples[i] = (int8_t)((sin(2 * (float)i * CONST_PI / number_of_points)) * amplitude);
+        printf("%d\n",audio_samples[i]);
     }
     sine_wave = audio_samples;
     /* Start the GPTimer */
@@ -125,9 +145,14 @@ esp_err_t play_speaker_sine(int frequency, int amplitude, gptimer_handle_t* time
 }
 
 esp_err_t play_speaker_audio(const char* file_name, gptimer_handle_t* timer_handle) {
+    if(playing){
+        return ESP_FAIL;
+    } else{
+        playing = true;
+    }
+
     FILE* file;
     int8_t* audio_samples;
-    int audio_samples_count;
     esp_err_t ret;
 
     // open file
@@ -136,22 +161,6 @@ esp_err_t play_speaker_audio(const char* file_name, gptimer_handle_t* timer_hand
         ESP_LOGE(TAG, "Failed to open file");
         return ESP_FAIL;
     }
-
-//    // read audio_samples_count
-//    if (fread(&audio_samples_count, sizeof(int), 1, file) != 1) {
-//        ESP_LOGE(TAG, "Failed to read audio samples count");
-//        fclose(file);
-//        return ESP_FAIL;
-//    }
-//
-//    // verify audio_samples_count
-//    if (audio_samples_count <= 0) {
-//        ESP_LOGE(TAG, "Audio sample count is invalid");
-//        fclose(file);
-//        return ESP_FAIL;
-//    }
-
-    audio_samples_count = 20000;
 
     // allocate memory
     audio_samples = (int8_t*)malloc(audio_samples_count * sizeof(int8_t));
@@ -162,19 +171,24 @@ esp_err_t play_speaker_audio(const char* file_name, gptimer_handle_t* timer_hand
     }
 
     // read data
-    if (fread(audio_samples, sizeof(int8_t), audio_samples_count, file) != audio_samples_count) {
-        ESP_LOGE(TAG, "Failed to read audio samples");
-        free(audio_samples);
-        fclose(file);
-        return ESP_FAIL;
+    int tmp;
+    for(int i = 0; i < audio_samples_count; i++) {
+        if (fscanf(file, "%d", &tmp) != 1) {
+            ESP_LOGE(TAG, "Failed to read audio samples");
+            free(audio_samples);
+            fclose(file);
+            return ESP_FAIL;
+        }
+        audio_samples[i] = (int8_t)tmp;
     }
 
     fclose(file);
 
     sine_wave = audio_samples;
+    number_of_points = audio_samples_count;
 
     /* Start the GPTimer */
     ESP_LOGI(TAG, "Speaker start");
-    ret = xTaskCreate((TaskFunction_t)timer, "TIMER", 1024 * 3, (void*)timer_handle, 2, NULL);
+    ret = xTaskCreate((TaskFunction_t) timer_audio, "TIMER", 1024 * 3, (void*)timer_handle, 2, NULL);
     return ret;
 }

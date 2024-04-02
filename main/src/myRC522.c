@@ -5,10 +5,10 @@
 
 static const char* TAG = "RC522";
 static const gpio_num_t buzzer_pin = GPIO_NUM_7;
-static const gpio_num_t rc522_reset_pin = GPIO_NUM_6;
+static const gpio_num_t rc522_reset_pin = GPIO_NUM_21;
 static const gpio_num_t solenoid_pin = GPIO_NUM_4;
 mcpwm_cmpr_handle_t comparator;
-static const int rc522_servo_pin = 5;
+static const int rc522_servo_pin = 1;
 bool correct_key = false;
 bool restart_key = false;
 
@@ -102,6 +102,15 @@ esp_err_t rc522_init(rc522_handle_t* scanner){
             .spi.sda_gpio = 47,
             .spi.bus_is_initialized = true,
     };
+
+    //used for debug if we didn't pre-initialize SPI
+//    rc522_config_t config = {
+//            .spi.host = SPI3_HOST,
+//            .spi.miso_gpio = 13,
+//            .spi.mosi_gpio = 11,
+//            .spi.sck_gpio = 12,
+//            .spi.sda_gpio = 47,
+//    };
 
     esp_err_t ret;
 

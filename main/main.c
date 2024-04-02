@@ -104,8 +104,8 @@ esp_err_t init(){
     ret = speaker_init(&timer_handle);
     if(ret != ESP_OK)   return ret;
 
-//    ret = rc522_init(&scanner);
-//    if(ret != ESP_OK)   return ret;
+    ret = rc522_init(&scanner);
+    if(ret != ESP_OK)   return ret;
 
     ret = intit_electromagnet(&scanner);
 
@@ -118,11 +118,14 @@ State doInit(Event* event) {
     if(*event != EVENT_INIT) return STATE_STOP;
 
     if(init() == ESP_OK){
-        while(1){
-//            play_speaker_sine(1000, 127, &timer_handle);
-            play_speaker_audio("/spiffs/sine.txt", &timer_handle);
-            vTaskDelay(2000);
-        }
+//        play_speaker_audio("/spiffs/c4.txt", &timer_handle);
+//        vTaskDelay(pdMS_TO_TICKS(500));
+//        play_speaker_audio("/spiffs/c5.txt", &timer_handle);
+//        vTaskDelay(pdMS_TO_TICKS(2000));
+//        play_speaker_audio("/spiffs/d4.txt", &timer_handle);
+//        while(1){
+//            vTaskDelay(pdMS_TO_TICKS(500));
+//        }
         printf("done init\n");
         *event = EVENT_INIT_FINISHED;
         return STATE_NFC_READER;
