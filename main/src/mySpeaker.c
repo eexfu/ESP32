@@ -144,6 +144,47 @@ esp_err_t play_speaker_sine(int frequency, int amplitude, gptimer_handle_t* time
     return ret;
 }
 
+esp_err_t play_sine_start(int frequency, int amplitude, gptimer_handle_t* timer_handle){
+    esp_err_t ret;
+
+    number_of_points = MHZ / (frequency * CALLBACK_INTERVAL_US);  //freq = 1000Hz -> 10
+    if(number_of_points <= 1) printf("Sine wave frequency is too high");
+
+    int8_t* audio_samples = (int8_t*)malloc(number_of_points * sizeof(int8_t));
+    /* Assign sine wave data */
+    for (int i = 0; i < number_of_points; i++) {
+        audio_samples[i] = (int8_t)((sin(2 * (float)i * CONST_PI / number_of_points)) * amplitude);
+        printf("%d\n",audio_samples[i]);
+    }
+    sine_wave = audio_samples;
+    /* Start the GPTimer */
+    ESP_LOGI(TAG, "Speaker start");
+    ret = gptimer_start(*timer_handle);
+    return ret;
+}
+
+esp_err_t play_sine_stop(gptimer_handle_t* timer_handle){
+    esp_err_t ret;
+
+    ret = gptimer_stop(*timer_handle);
+    free(sine_wave);
+
+    return ret;
+}
+
+void set_sine_wave(int frequency, int amplitude){
+    number_of_points = MHZ / (frequency * CALLBACK_INTERVAL_US);  //freq = 1000Hz -> 10
+    if(number_of_points <= 1) printf("Sine wave frequency is too high");
+
+    int8_t* audio_samples = (int8_t*)malloc(number_of_points * sizeof(int8_t));
+    /* Assign sine wave data */
+    for (int i = 0; i < number_of_points; i++) {
+        audio_samples[i] = (int8_t)((sin(2 * (float)i * CONST_PI / number_of_points)) * amplitude);
+        printf("%d\n",audio_samples[i]);
+    }
+    sine_wave = audio_samples;
+}
+
 esp_err_t play_speaker_audio(const char* file_name, gptimer_handle_t* timer_handle) {
     if(playing){
         return ESP_FAIL;

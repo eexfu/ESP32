@@ -104,7 +104,7 @@ esp_err_t init(){
     ret = speaker_init(&timer_handle);
     if(ret != ESP_OK)   return ret;
 
-    ret = rc522_init(&scanner);
+    ret = rc522_init(&scanner, &timer_handle);
     if(ret != ESP_OK)   return ret;
 
     ret = intit_electromagnet(&scanner);

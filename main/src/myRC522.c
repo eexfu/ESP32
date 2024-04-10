@@ -2,11 +2,11 @@
 #include <esp_log.h>
 #include "driver/mcpwm_prelude.h"
 #include "include/myServo.h"
+#include "mySpeaker.h"
 
 static const char* TAG = "RC522";
-static const gpio_num_t buzzer_pin = GPIO_NUM_7;
 static const gpio_num_t rc522_reset_pin = GPIO_NUM_21;
-static const gpio_num_t solenoid_pin = GPIO_NUM_4;
+static const gpio_num_t solenoid_pin = GPIO_NUM_7;
 mcpwm_cmpr_handle_t comparator;
 static const int rc522_servo_pin = 1;
 bool correct_key = false;
@@ -14,6 +14,7 @@ bool restart_key = false;
 
 static void rc522_handler(void* arg, esp_event_base_t base, int32_t event_id, void* event_data){
     rc522_event_data_t* data = (rc522_event_data_t*) event_data;
+    gptimer_handle_t* timer_handle = (gptimer_handle_t*) arg;
     switch(event_id) {
         case RC522_EVENT_TAG_SCANNED: {
             rc522_tag_t* tag = (rc522_tag_t*) data->ptr;
@@ -30,9 +31,8 @@ static void rc522_handler(void* arg, esp_event_base_t base, int32_t event_id, vo
             } else if(tag->serial_number == 787332672355){
                 printf("wrong key\n");
                 fflush(stdout);
-                open_buzzer();
+                play_speaker_sine(1000, 127, timer_handle);
                 vTaskDelay(pdMS_TO_TICKS(1000));
-                close_buzzer();
                 rotate_servo(-90, &comparator);
             }
             else if(tag->serial_number == 000000000000){
@@ -45,9 +45,8 @@ static void rc522_handler(void* arg, esp_event_base_t base, int32_t event_id, vo
             else{
                 printf("unknown key\n");
                 fflush(stdout);
-                open_buzzer();
+                play_speaker_sine(1000, 127, timer_handle);
                 vTaskDelay(pdMS_TO_TICKS(1000));
-                close_buzzer();
                 rotate_servo(-90, &comparator);
             }
         }
@@ -62,26 +61,11 @@ esp_err_t rc522_power_down() {
     return ret;
 }
 
-esp_err_t buzzer_init() {
-    esp_err_t ret;
-    gpio_set_direction(buzzer_pin, GPIO_MODE_OUTPUT);
-    ret = gpio_set_level(buzzer_pin, 0);
-    return ret;
-}
-
 esp_err_t solenoid_int() {
     esp_err_t ret;
     gpio_set_direction(solenoid_pin, GPIO_MODE_OUTPUT);
     ret = gpio_set_level(solenoid_pin, 0);
     return ret;
-}
-
-void open_buzzer(){
-    gpio_set_level(buzzer_pin, 1);
-}
-
-void close_buzzer(){
-    gpio_set_level(buzzer_pin, 0);
 }
 
 void open_solenoid(){
@@ -92,7 +76,7 @@ void close_solenoid(){
     gpio_set_level(solenoid_pin, 0);
 }
 
-esp_err_t rc522_init(rc522_handle_t* scanner){
+esp_err_t rc522_init(rc522_handle_t* scanner, gptimer_handle_t* timer_handle){
     printf("Start RC522 Init\n");
     //reset rc522
     gpio_set_level(rc522_reset_pin,1);
@@ -117,9 +101,6 @@ esp_err_t rc522_init(rc522_handle_t* scanner){
     ret = servo_init(rc522_servo_pin, &comparator);
     if(ret != ESP_OK)   return ret;
 
-    ret = buzzer_init();
-    if(ret != ESP_OK)   return ret;
-
     ret = solenoid_int();
     if(ret != ESP_OK)   return ret;
 
@@ -130,7 +111,7 @@ esp_err_t rc522_init(rc522_handle_t* scanner){
     } else{
         printf("scanner is null\n");
     }
-    ret = rc522_register_events(*scanner, RC522_EVENT_ANY, rc522_handler, NULL);
+    ret = rc522_register_events(*scanner, RC522_EVENT_ANY, rc522_handler, (void*)timer_handle);
     printf("Done RC522 Init\n");
     return ret;
 }
