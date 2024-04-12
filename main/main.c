@@ -2,10 +2,13 @@
 #include "include/myServo.h"
 #include "include/myNRF24.h"
 #include "include/mySpeaker.h"
-#include "include/myIRSensor.h"
+#include "include/myLaser.h"
 #include "include/myElectromagnet.h"
+#include "include/myIRSensor.h"
 #include "driver/gptimer.h"
 #include "mySPIFFS.h"
+
+static const char *TAG = "MAIN";
 
 //******************************************FSM definition****************************************
 // define state enum
@@ -80,6 +83,9 @@ NRF24_t dev;
 gptimer_handle_t timer_handle;
 rc522_handle_t scanner;
 
+mcpwm_cmpr_handle_t servo_piano_handle;
+mcpwm_cmpr_handle_t servo_laser_handle;
+
 esp_err_t init();
 
 void app_main(void) {
@@ -93,19 +99,24 @@ void app_main(void) {
 
 esp_err_t init(){
     esp_err_t ret;
-    ret = rc522_power_down();
-    if(ret != ESP_OK)   return ret;
+//    ret = rc522_power_down(); //TODO fix commenting speaker, nrf, and rc522 parts
+//    if(ret != ESP_OK)   return ret;
 
 //    ret = nrf24_init(&dev);
 //    if(ret != ESP_OK)   return ret;
 
-    init_spiffs();
+//    init_spiffs();
 
     ret = speaker_init(&timer_handle);
     if(ret != ESP_OK)   return ret;
 
-    ret = rc522_init(&scanner, &timer_handle);
-    if(ret != ESP_OK)   return ret;
+    servo_init(1, &servo_piano_handle);
+    rotate_servo(0, &servo_piano_handle);
+
+    servo_init(48, &servo_laser_handle);
+    rotate_servo(90, &servo_laser_handle); //block laser
+//    ret = rc522_init(&scanner);
+//    if(ret != ESP_OK)   return ret;
 
     ret = intit_electromagnet(&scanner);
 
@@ -114,7 +125,7 @@ esp_err_t init(){
 
 //*******************************************FSM transfer function*****************************************
 State doInit(Event* event) {
-    printf("start init\n");
+    ESP_LOGI(TAG,"start init\n");
     if(*event != EVENT_INIT) return STATE_STOP;
 
     if(init() == ESP_OK){
@@ -126,36 +137,42 @@ State doInit(Event* event) {
 //        while(1){
 //            vTaskDelay(pdMS_TO_TICKS(500));
 //        }
-        printf("done init\n");
-        *event = EVENT_INIT_FINISHED;
-        return STATE_NFC_READER;
+        ESP_LOGI(TAG,"done init\n");
+//        *event = EVENT_INIT_FINISHED; //TODO uncomment this and comment out next part
+//        return STATE_NFC_READER;
+
+//        *event = EVENT_SIMON_FINISHED;
+//        return STATE_SIMON_TO_DISTANCE;
+
+        *event = EVENT_PIANO_TO_LASER_FINISHED;
+        return STATE_LASER;
     }
-    printf("init fail\n");
+    ESP_LOGI(TAG,"init fail\n");
     return STATE_INIT;
 }
 
 State doNFCReader(Event* event){
-    printf("start NFC\n");
+    ESP_LOGI(TAG,"start NFC\n");
     if(*event != EVENT_INIT_FINISHED)  return STATE_STOP;
 
     if(myRC522_start(&scanner) == ESP_OK){
         *event = EVENT_NFC_READER_FINISHED;
         return STATE_NFC_TO_PIANO;
     }
-    printf("done NFC\n");
+    ESP_LOGI(TAG,"done NFC\n");
     return STATE_NFC_READER;
 }
 
 State doNFCToPiano(Event* event){
-    printf("start NFCToPiano\n");
+    ESP_LOGI(TAG,"start NFCToPiano\n");
     if(*event != EVENT_NFC_READER_FINISHED) return STATE_STOP;
 
     if(notifyPiano(&dev) == ESP_OK){
         *event = EVENT_NFC_TO_PIANO_FINISHED;
-        printf("done NFCToPiano\n");
+        ESP_LOGI(TAG,"done NFCToPiano\n");
         return STATE_PIANO;
     }
-    printf("fail NFCToPiano\n");
+    ESP_LOGI(TAG,"fail NFCToPiano\n");
     return STATE_PIANO;
 }
 
@@ -172,6 +189,8 @@ State doPiano(Event* event){
 State doPianoToLaser(Event *event){
     if(*event != EVENT_PIANO_FINISHED)  return STATE_STOP;
 
+    rotate_servo(0, &servo_laser_handle);
+
     if(isReadyForLaser(&dev) == ESP_OK){
         *event = EVENT_PIANO_TO_LASER_FINISHED;
         return STATE_LASER;
@@ -180,8 +199,22 @@ State doPianoToLaser(Event *event){
 }
 
 State doLaser(Event* event){
-    printf("Laser running...\n");
-    return STATE_LASER_TO_SIMON;
+    if(*event != EVENT_PIANO_TO_LASER_FINISHED)  return STATE_STOP;
+
+    ESP_LOGI(TAG,"Laser running...\n");
+
+    bool ret = laserSensorMain();
+
+    if (ret == true) {
+        *event = EVENT_LASER_FINISHED;
+        ESP_LOGI(TAG,"Distance done\n");
+        return STATE_LASER_TO_SIMON;
+
+    } else {
+        ESP_LOGI(TAG,"Not supposed to happen...");
+        *event = EVENT_PIANO_TO_LASER_FINISHED;
+        return STATE_LASER;
+    }
 }
 
 State doLaserToSimon(Event* event){
@@ -189,16 +222,16 @@ State doLaserToSimon(Event* event){
 }
 
 State doSimon(Event* event){
-    printf("Simon running...\n");
+    ESP_LOGI(TAG,"Simon running...\n");
     return STATE_SIMON_TO_DISTANCE;
 }
 
 State doSimonToDistance(Event* event){
     if (*event != EVENT_SIMON_FINISHED) return STATE_STOP;
 
-    bool ret = setEM(0);
+    esp_err_t ret = setEM(0);
     if (ret == ESP_OK) {
-        printf("simon to distance done, EM should be off");
+        ESP_LOGI(TAG,"simon to distance done, EM should be off");
         *event = EVENT_SIMON_TO_DISTANCE_FINISHED;
         return STATE_DISTANCE;
     }
@@ -208,18 +241,26 @@ State doSimonToDistance(Event* event){
 
 State doDistance(Event* event){
     if (*event != EVENT_SIMON_TO_DISTANCE_FINISHED) return STATE_STOP;
-    printf("start distance");
+    ESP_LOGI(TAG, "start distance");
+
+    play_sine_start(220, 100, &timer_handle);
+
+    //play_speaker_sine(1000, 10, &timer_handle);
+
     //call func
-    bool ret = irSensorMain(); //fc only returns after game is done :), maybe pass speaker handel to this?
+    bool ret = irSensorMain(&timer_handle); //fc only returns after game is done
+
     if (ret == true) {
         *event = EVENT_DISTANCE_FINISHED;
-    } else {
-        printf("Not supposed to happen...");
-    }
-    // set next state
+        ESP_LOGI(TAG,"Distance done\n");
+        play_sine_stop(&timer_handle);
+        return STATE_FINISH;
 
-    printf("Distance done...\n");
-    return STATE_FINISH;
+    } else {
+        ESP_LOGI(TAG,"Not supposed to happen...");
+        *event = EVENT_SIMON_TO_DISTANCE_FINISHED;
+        return STATE_DISTANCE;
+    }
 }
 
 State doFinish(Event* event){

@@ -8,7 +8,7 @@
 #include <string.h>
 #include <driver/gpio.h>
 
-#define EM_GPIO_PIN 7
+#define EM_GPIO_PIN 45
 
 esp_err_t intit_electromagnet() {
     esp_err_t ret;

@@ -12,7 +12,7 @@ esp_err_t nrf24_init(NRF24_t* dev){
     printf("Start NRF24 Init\n");
     Nrf24_init(dev);
     uint8_t payload = 32;
-    uint8_t channel = CONFIG_RADIO_CHANNEL;
+    uint8_t channel = 110;
     Nrf24_SetSpeedDataRates(dev, 1);
     Nrf24_setRetransmitDelay(dev, 3);
     Nrf24_SetOutputRF_PWR(dev, 3);
