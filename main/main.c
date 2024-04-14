@@ -7,6 +7,7 @@
 #include "include/myIRSensor.h"
 #include "driver/gptimer.h"
 #include "mySPIFFS.h"
+#include "myDCMotor.h"
 
 static const char *TAG = "MAIN";
 
@@ -115,10 +116,12 @@ esp_err_t init(){
 
     servo_init(48, &servo_laser_handle);
     rotate_servo(90, &servo_laser_handle); //block laser
+
+
 //    ret = rc522_init(&scanner);
 //    if(ret != ESP_OK)   return ret;
 
-    ret = intit_electromagnet(&scanner);
+    ret = Electromagnet_init();
 
     return ret;
 }
@@ -264,6 +267,7 @@ State doDistance(Event* event){
 }
 
 State doFinish(Event* event){
+    ESP_ERROR_CHECK(ElevatorMotor());
     return STATE_STOP;
 }
 

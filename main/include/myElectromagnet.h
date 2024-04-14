@@ -11,5 +11,5 @@
 
 #include "esp_log.h"
 
-esp_err_t intit_electromagnet();
+esp_err_t Electromagnet_init();
 esp_err_t setEM(bool level);

@@ -7,6 +7,7 @@ idf_component_register(SRCS
         "src/myIRSensor.c"
         "src/myElectromanget.c"
         "src/myLaser.c"
+        "src/myDCMotor.c"
         "main.c"
         INCLUDE_DIRS "."
         "./include")

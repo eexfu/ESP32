@@ -10,15 +10,15 @@
 
 #define EM_GPIO_PIN 45
 
-esp_err_t intit_electromagnet() {
-    esp_err_t ret;
-    ret = gpio_set_direction(EM_GPIO_PIN, GPIO_MODE_OUTPUT);
-    if (ret != ESP_OK) return ret;
-    ret = gpio_set_level(EM_GPIO_PIN, 1);
-    if (ret != ESP_OK) return ret;
+esp_err_t Electromagnet_init() {
+
+    ESP_ERROR_CHECK( gpio_set_direction(EM_GPIO_PIN, GPIO_MODE_OUTPUT) );
+    ESP_ERROR_CHECK( gpio_set_level(EM_GPIO_PIN, 1) );
+
     return ESP_OK;
 }
 
 esp_err_t setEM(bool level) {
+
     return gpio_set_level(EM_GPIO_PIN, level);
 }
