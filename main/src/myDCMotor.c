@@ -1,3 +1,40 @@
+#include "../include/myDCMotor.h"
+#include <stdio.h>
+#include <driver/gpio.h>
+#include "sdkconfig.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_log.h"
+#include "esp_timer.h"
+
+#define TAG "DC_Motor"
+
+
+#define BDC_MCPWM_GPIO_A              4
+#define BDC_MCPWM_GPIO_B              5
+#define BDC_EN_GPIO                   6
+
+esp_err_t ElevatorMotor() {
+    gpio_set_direction(BDC_MCPWM_GPIO_A, GPIO_MODE_OUTPUT);
+    gpio_set_direction(BDC_MCPWM_GPIO_B, GPIO_MODE_OUTPUT);
+    gpio_set_direction(BDC_EN_GPIO, GPIO_MODE_OUTPUT);
+
+    gpio_set_level(BDC_EN_GPIO, 1);
+    gpio_set_level(BDC_MCPWM_GPIO_A, 1);
+    gpio_set_level(BDC_MCPWM_GPIO_B, 0);
+
+
+    vTaskDelay(pdMS_TO_TICKS(200));
+
+    gpio_set_level(BDC_MCPWM_GPIO_A, 0);
+    gpio_set_level(BDC_MCPWM_GPIO_B, 0);
+
+    return ESP_OK;
+}
+
+
+
+/*
 //
 // Created by desto on 13/04/2024.
 //
@@ -69,7 +106,8 @@ esp_err_t ElevatorMotor() {
     bdc_motor_del(motor);
 
 
-    /* Find speed range (is from ~ 200 to ~ 400)
+    */
+/* Find speed range (is from ~ 200 to ~ 400)
     esp_err_t err;
     for (int i = 1; i < 10000; i = i + 10) {
         vTaskDelay(pdMS_TO_TICKS(500));
@@ -82,7 +120,8 @@ esp_err_t ElevatorMotor() {
             break;
         }
     }
-    */
+    *//*
+
 
     return ESP_OK; //TODO fix error handling
-};
+};*/
