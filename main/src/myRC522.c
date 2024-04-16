@@ -1,3 +1,7 @@
+/*
+ * modified from https://github.com/abobija/esp-idf-rc522
+ * */
+
 #include "../include/myRC522.h"
 #include <esp_log.h>
 #include "driver/mcpwm_prelude.h"

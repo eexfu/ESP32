@@ -1,6 +1,14 @@
 #include "mySpeaker.h"
 
-//copy from sda_dac example of Expressif
+/*
+ * SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: Unlicense OR CC0-1.0
+ */
+
+/*
+ * modified from sda_dac example of Expressif
+ * */
 #include <math.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
