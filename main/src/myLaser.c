@@ -1,6 +1,7 @@
-//
-// Created by desto on 1/04/2024.
-//
+/*
+ * Code based on oneshot-read from esp-idf-v5.2.1 framework, 2022-2023 Espressif Systems (Shanghai) CO LTD
+ * https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/index.html
+ */
 
 #include "./include/myLaser.h"
 #include <stdio.h>
@@ -50,22 +51,16 @@ bool processLaserData(int value) {
     ESP_LOGI(TAG, "value= %d, threshold %d, countConsec = %d", value, threshold, countConsec);
 
     if (!samplingDone) {
-        //thresholdArray[count] = value;
+        thresholdArray[count] = value;
         count++;
-
         if (count >= SAMPLES_THRESHOLD) {
-            threshold = value + 300;
+            int sum = 0;
+            for (int i = 0; i < sizeof(thresholdArray); i++) {
+                sum += thresholdArray[i];
+            }
+            threshold = sum / sizeof(thresholdArray);
             samplingDone = true;
         }
-
-//        if (count >= SAMPLES_THRESHOLD) {
-//            countConsec = 0;
-//            int sum = 0;
-//            for (int i = 0; i < sizeof(thresholdArray); i++) {
-//                sum += thresholdArray[i];
-//            }
-//            threshold = sum / sizeof(thresholdArray);
-//        }
 
     } else {
 

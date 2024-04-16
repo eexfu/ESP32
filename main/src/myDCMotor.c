@@ -33,7 +33,7 @@ esp_err_t ElevatorMotor() {
 
     gpio_set_level(BDC_EN_GPIO, 1);         //Motor Enable
 
-
+/*
     gpio_set_level(BDC_MCPWM_GPIO_A, 1);    //Motor forward
     gpio_set_level(BDC_MCPWM_GPIO_B, 0);
 
@@ -43,6 +43,7 @@ esp_err_t ElevatorMotor() {
     gpio_set_level(BDC_MCPWM_GPIO_B, 0);
 
     vTaskDelay(pdMS_TO_TICKS(50));
+    */
 
     gpio_set_level(BDC_MCPWM_GPIO_A, 1);    //Motor forward
     gpio_set_level(BDC_MCPWM_GPIO_B, 0);
