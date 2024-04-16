@@ -7,24 +7,25 @@
 bool piano_receive = false;
 bool piano_finished = false;
 bool ready_for_laser = false;
+uint8_t payload = 2;
 
 esp_err_t nrf24_init(NRF24_t* dev){
     printf("Start NRF24 Init\n");
     Nrf24_init(dev);
-    uint8_t payload = 32;
-    uint8_t channel = 110;
-    Nrf24_SetSpeedDataRates(dev, 1);
-    Nrf24_setRetransmitDelay(dev, 3);
-    Nrf24_SetOutputRF_PWR(dev, 3);
+    uint8_t channel = CONFIG_RADIO_CHANNEL;
     Nrf24_config(dev, channel, payload);
 
-    //Set the receiver address using 5 characters
-    esp_err_t ret = Nrf24_setTADDR(dev, (uint8_t *)"FGHIJ");
+    esp_err_t ret;
+    Nrf24_setTADDR(dev, (uint8_t *)"ABCDE");
+    ret = Nrf24_setRADDR(dev, (uint8_t *)"FGHIJ");
     if (ret != ESP_OK) {
         ESP_LOGE(pcTaskGetName(0), "nrf24l01 not installed");
-        return ret;
-//        while(1) { vTaskDelay(1); }
+//        return ret;
+        while(1){ vTaskDelay(1); }
     }
+
+    Nrf24_SetSpeedDataRates(dev, 0);
+    Nrf24_setRetransmitDelay(dev, 3);
 
     //Print settings
     Nrf24_printDetails(dev);
@@ -34,19 +35,20 @@ esp_err_t nrf24_init(NRF24_t* dev){
 
 void sender(void *pvParameters)
 {
-    //TODO need to stop after finished
     NRF24_t dev = *(NRF24_t *)pvParameters;
     uint8_t buf[32];
     while(1) {
-        TickType_t nowTick = xTaskGetTickCount();
-        sprintf((char *)buf, "Hello World %"PRIu32, nowTick);
+//        TickType_t nowTick = xTaskGetTickCount();
+//        sprintf((char *)buf, "Hello World %"PRIu32, nowTick);
+        buf[0] = 0;
+        buf[1] = 99;
         Nrf24_send(&dev, buf);
         vTaskDelay(1);
         ESP_LOGI(pcTaskGetName(0), "Wait for sending.....");
         if (Nrf24_isSend(&dev, 1000)) {
             ESP_LOGI(pcTaskGetName(0),"Send success:%s", buf);
             piano_receive = true;
-//            vTaskDelete(NULL);
+            vTaskDelete(NULL);
         } else {
             ESP_LOGW(pcTaskGetName(0),"Send fail:%s", buf);
         }
@@ -56,11 +58,10 @@ void sender(void *pvParameters)
 
 void receiver(void *pvParameters)
 {
-    //TODO need to stop after finished
-    receiverParams_t* params = (receiverParams_t*)pvParameters;
+    receiverParams_t *params = (receiverParams_t*)pvParameters;
     NRF24_t dev = *(params->dev);
     gptimer_handle_t* timer_handle = params->timer_handle;
-    uint8_t buf[32];
+    uint8_t buf[payload];
 
     // Clear RX FiFo
     while(1) {
@@ -68,29 +69,30 @@ void receiver(void *pvParameters)
         Nrf24_getData(&dev, buf);
     }
 
+    printf("start receiver\n");
     while(1) {
-        //When the program is received, the received data is output from the serial port
         if (Nrf24_dataReady(&dev)) {
             Nrf24_getData(&dev, buf);
-            ESP_LOGI(pcTaskGetName(0), "Got data:%s", buf);
-            if(strncmp((char*)buf, "Piano Finished", 14) != 0){
+            ESP_LOGI(pcTaskGetName(0), "Got data:%d-%d", buf[0], buf[1]);
+            if(buf[0] == 3 && buf[1] == 231){
                 piano_finished = true;
-//                vTaskDelete(NULL);
+                printf("piano_finished\n");
+                vTaskDelete(NULL);
             }
-            else if(strncmp((char*)buf, "ready_for_laser", 15) != 0){
-                ready_for_laser = true;
+//            else if(buf[0] == 11){
+//                ready_for_laser = true;
+//                printf("ready for laser\n");
 //                vTaskDelete(NULL);
-            }
-            else if(strncmp((char*)buf, "do", 2) != 0) play_speaker_audio("../../res/piano_note/c4.txt", timer_handle);
-            else if(strncmp((char*)buf, "re", 2) != 0) play_speaker_audio("../../res/piano_note/d4.txt", timer_handle);
-            else if(strncmp((char*)buf, "mi", 2) != 0) play_speaker_audio("../../res/piano_note/e4.txt", timer_handle);
-            else if(strncmp((char*)buf, "fa", 2) != 0) play_speaker_audio("../../res/piano_note/f4.txt", timer_handle);
-            else if(strncmp((char*)buf, "so", 2) != 0) play_speaker_audio("../../res/piano_note/g4.txt", timer_handle);
-            else if(strncmp((char*)buf, "la", 2) != 0) play_speaker_audio("../../res/piano_note/a4.txt", timer_handle);
-            else if(strncmp((char*)buf, "xi", 2) != 0) play_speaker_audio("../../res/piano_note/b4.txt", timer_handle);
-            else if(strncmp((char*)buf, "up_do", 2) != 0) play_speaker_audio("../../res/piano_note/c5.txt", timer_handle);
-            else play_speaker_audio("../../res/piano_note/c4.txt", timer_handle);
-            //ESP_LOG_BUFFER_HEXDUMP(pcTaskGetName(0), buf, payload, ESP_LOG_INFO);
+//            }
+            else if(buf[0] == 1 && buf[1] == 06) play_speaker_audio("/spiffs/c4.txt", timer_handle);
+            else if(buf[0] == 1 && buf[1] == 38) play_speaker_audio("/spiffs/d4.txt", timer_handle);
+            else if(buf[0] == 1 && buf[1] == 74) play_speaker_audio("/spiffs/e4.txt", timer_handle);
+            else if(buf[0] == 1 && buf[1] == 93) play_speaker_audio("/spiffs/f4.txt", timer_handle);
+            else if(buf[0] == 1 && buf[1] == 136) play_speaker_audio("/spiffs/g4.txt", timer_handle);
+            else if(buf[0] == 1 && buf[1] == 184) play_speaker_audio("/spiffs/a4.txt", timer_handle);
+            else if(buf[0] == 1 && buf[1] == 238) play_speaker_audio("/spiffs/b4.txt", timer_handle);
+            else if(buf[0] == 2 && buf[1] == 11) play_speaker_audio("/spiffs/c5.txt", timer_handle);
+            else play_speaker_audio("/spiffs/sine.txt", timer_handle);
         }
         vTaskDelay(1);
     }
@@ -99,12 +101,19 @@ void receiver(void *pvParameters)
 esp_err_t notifyPiano(NRF24_t* dev){
     esp_err_t ret;
     ret = xTaskCreate(&sender, "SENDER", 1024*3, (void *)dev, 2, NULL);
-    if(ret != ESP_OK)    return ret;
+    if(ret != ESP_OK){
+        ESP_LOGI("NRF24", "create sender: %d", ret);
+//        return ret;
+    }
     while (1){
-        if(piano_receive)   break;
+        if(piano_receive == true){
+            ESP_LOGI("NRF24", "piano_receive: %s", (piano_receive)? "true":"false");
+            break;
+        }
         vTaskDelay(1000/portTICK_PERIOD_MS);
     }
-    return ret;
+    ESP_LOGI("NRF24", "%d", ret);
+    return ESP_OK;
 }
 
 esp_err_t isPianoFinished(gptimer_handle_t* timer_handle, NRF24_t* dev){
@@ -113,20 +122,24 @@ esp_err_t isPianoFinished(gptimer_handle_t* timer_handle, NRF24_t* dev){
             .timer_handle = timer_handle,
             .dev = dev,
     };
+    printf("Start Listening\n");
     ret = xTaskCreate(&receiver, "RECEIVER", 1024*3, (void *)&params, 2, NULL);
-    if(ret != ESP_OK)   return ret;
+    if(ret != ESP_OK){
+        ESP_LOGI("NRF24", "create receiver: %d", ret);
+//        return ret;
+    }
     while (1){
         if(piano_finished)  break;
         vTaskDelay(1000/portTICK_PERIOD_MS);
     }
-    return ret;
+    return ESP_OK;
 }
 
 esp_err_t isReadyForLaser(NRF24_t* dev){
-    esp_err_t ret;
-    ret = xTaskCreate(&receiver, "RECEIVER", 1024*3, (void *)dev, 2, NULL);
-    if(ret != ESP_OK)   return ret;
-    while (1)
-        if(ready_for_laser) break;
+    esp_err_t ret = ESP_OK;
+//    ret = xTaskCreate(&receiver, "RECEIVER", 1024*3, (void *)dev, 2, NULL);
+//    if(ret != ESP_OK)   return ret;
+//    while (1)
+//        if(ready_for_laser) break;
     return ret;
 }

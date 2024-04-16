@@ -24,7 +24,7 @@ esp_err_t ElevatorMotor() {
     gpio_set_level(BDC_MCPWM_GPIO_B, 0);
 
 
-    vTaskDelay(pdMS_TO_TICKS(200));
+    vTaskDelay(pdMS_TO_TICKS(500));
 
     gpio_set_level(BDC_MCPWM_GPIO_A, 0);
     gpio_set_level(BDC_MCPWM_GPIO_B, 0);
@@ -61,7 +61,7 @@ esp_err_t ElevatorMotor() {
 
 #define BDC_EN_GPIO                   6
 
-#define TIME_FOR_ELEVATOR             500
+#define TIME_FOR_ELEVATOR             400
 
 esp_err_t ElevatorMotor() {
 
@@ -80,14 +80,15 @@ esp_err_t ElevatorMotor() {
 
     bdc_motor_handle_t motor = NULL;                //Makes motor handle
 
+    ESP_LOGI(TAG, "New Motor");
     ESP_ERROR_CHECK(
             bdc_motor_new_mcpwm_device(&motor_config, &mcpwm_config, &motor)
             );
 
-    //ESP_LOGI(TAG, "Enable DC motor");
+    ESP_LOGI(TAG, "Enable DC motor");
     bdc_motor_enable(motor);                        //idk what this does
 
-    //ESP_LOGI(TAG, "Forward DC motor");
+    ESP_LOGI(TAG, "Forward DC motor");
     bdc_motor_forward(motor);
 
     //-------------EN-pin Init---------------//
@@ -96,12 +97,15 @@ esp_err_t ElevatorMotor() {
 
 
     //-------------Turn on for x seconds for elevator---------------//
-
+    ESP_LOGI(TAG, "Turn Motor");
     bdc_motor_set_speed(motor, 200);
     vTaskDelay(pdMS_TO_TICKS(TIME_FOR_ELEVATOR));
 
     //-------------Turn of and teardown---------------//
-    bdc_motor_coast(motor);
+    ESP_LOGI(TAG, "Coast");
+    //bdc_motor_coast(motor);
+    bdc_motor_set_speed(motor, 0);
+    bdc_motor_disable(motor);
     vTaskDelay(pdMS_TO_TICKS(200));
     bdc_motor_del(motor);
 

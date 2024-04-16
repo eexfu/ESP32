@@ -15,7 +15,6 @@
 #include "esp_adc/adc_oneshot.h"
 #include "esp_adc/adc_cali.h"
 #include "esp_adc/adc_cali_scheme.h"
-#include "mySpeaker.h"
 
 const static char *TAG = "IR_ADC";
 
@@ -23,7 +22,7 @@ const static char *TAG = "IR_ADC";
         ADC General values
 ---------------------------------------------------------------*/
 #define IR_ADC               ADC_CHANNEL_7
-#define IR_ADC_ATTEN           ADC_ATTEN_DB_12 //For range to 3.1V
+#define IR_ADC_ATTEN           ADC_ATTEN_DB_11 //For range to 3.1V
 
 #define IR_SAMPLE_PERIOD            (100)
 #define MAX_COUNT                   (3000 / IR_SAMPLE_PERIOD)
@@ -148,8 +147,9 @@ static void example_adc_calibration_deinit(adc_cali_handle_t handle) {
 
     esp_err_t LEDs_init() {
         for (int i = 0; i < sizeof(IR_LEDS) / sizeof(IR_LEDS[0]); i++) {
-            if (gpio_set_direction(IR_LEDS[i], GPIO_MODE_OUTPUT) != ESP_OK)    return ESP_ERR_INVALID_ARG;
-            if (gpio_set_level(IR_LEDS[i], 0) != ESP_OK)                        return ESP_ERR_INVALID_ARG;
+            ESP_ERROR_CHECK (gpio_set_direction(IR_LEDS[i], GPIO_MODE_OUTPUT) != ESP_OK);
+            ESP_ERROR_CHECK (gpio_set_level(IR_LEDS[i], 0) != ESP_OK);
+            vTaskDelay(pdMS_TO_TICKS(10));
         }
         return ESP_OK;
     }
@@ -172,10 +172,10 @@ static void example_adc_calibration_deinit(adc_cali_handle_t handle) {
 /*---------------------------------------------------------------
         Data processing
 ---------------------------------------------------------------*/
+int thresholds[] = {3300, 2000, 1200, 0}; //Can make const?
 
 int convertToRange(int measuredVoltage) { //Convert voltage into levelValue
     int range = 0;
-    int thresholds[] = {3300, 2000, 1000, 400, 0}; //Can make const?
 
     if (measuredVoltage < 0) { //Invalid measuredVoltage
         return -1;
@@ -195,7 +195,7 @@ int convertToRange(int measuredVoltage) { //Convert voltage into levelValue
 int counter = 0;
 int prevRange = 0;
 int currentLevel = 0;
-int levelValues[] = {1, 2, 3, 4};       //TODO make const?
+int correctCode[] = {1, 2, 3, 1};       //TODO make const?
 int rangeFrequencies[] = {220, 440, 880, 1760};
 
 bool processIRData(int value) {
@@ -203,7 +203,7 @@ bool processIRData(int value) {
     int range = convertToRange(value);
 
     //play_speaker_sine(rangeFrequencies[range], 100, timer_handle_speaker);
-    set_sine_wave(rangeFrequencies[range], 100);
+    set_sine_wave(rangeFrequencies[range], 20);
 
     //TODO: call function to set speaker freq to match range
     if (range == -1) { //invalid value
@@ -213,10 +213,10 @@ bool processIRData(int value) {
     if (range == prevRange) {                           //Holding same value
         counter++;
         if (counter >= MAX_COUNT) {                     //Holding for MAX_COUNT amount of IR_SAMPLE_PERIODS (ms)
-            if (levelValues[currentLevel] == range) {   //Held correct value
+            if (correctCode[currentLevel] == range) {   //Held correct value
                 if (currentLevel == 3) {                //Was last value (4th of 4th LED)
                     currentLevel++;
-
+                    LEDs_set_value(currentLevel);
                     return true;                        //FINISH GAME
                 } else {                                //Not last value --> next value
                     currentLevel++;

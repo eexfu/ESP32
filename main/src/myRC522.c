@@ -28,14 +28,8 @@ static void rc522_handler(void* arg, esp_event_base_t base, int32_t event_id, vo
                 rotate_servo(90, &comparator);
                 vTaskDelay(pdMS_TO_TICKS(1000));
                 close_solenoid();
-            } else if(tag->serial_number == 787332672355){
-                printf("wrong key\n");
-                fflush(stdout);
-                play_speaker_sine(1000, 127, timer_handle);
-                vTaskDelay(pdMS_TO_TICKS(1000));
-                rotate_servo(-90, &comparator);
             }
-            else if(tag->serial_number == 000000000000){
+            else if(tag->serial_number == 787332672355){
                 //TODO need to decide the serial number of reset key later
                 printf("restart key\n");
                 fflush(stdout);
@@ -43,9 +37,10 @@ static void rc522_handler(void* arg, esp_event_base_t base, int32_t event_id, vo
                 rotate_servo(-90, &comparator);
             }
             else{
-                printf("unknown key\n");
+                printf("wrong key\n");
                 fflush(stdout);
-                play_speaker_sine(1000, 127, timer_handle);
+//                play_speaker_sine(1000, 127, timer_handle);
+                play_speaker_audio("/spiffs/sine.txt", timer_handle);
                 vTaskDelay(pdMS_TO_TICKS(1000));
                 rotate_servo(-90, &comparator);
             }
@@ -61,10 +56,17 @@ esp_err_t rc522_power_down() {
     return ret;
 }
 
+esp_err_t rc522_power_up(){
+    esp_err_t ret;
+    //reset rc522
+    ret = gpio_set_level(rc522_reset_pin,1);
+    return ret;
+}
+
 esp_err_t solenoid_int() {
     esp_err_t ret;
-    gpio_set_direction(solenoid_pin, GPIO_MODE_OUTPUT);
-    ret = gpio_set_level(solenoid_pin, 0);
+    ret = gpio_set_direction(solenoid_pin, GPIO_MODE_OUTPUT);
+    close_solenoid();
     return ret;
 }
 
@@ -78,8 +80,8 @@ void close_solenoid(){
 
 esp_err_t rc522_init(rc522_handle_t* scanner, gptimer_handle_t* timer_handle){
     printf("Start RC522 Init\n");
-    //reset rc522
-    gpio_set_level(rc522_reset_pin,1);
+
+    rc522_power_up();
 
     rc522_config_t config = {
             .spi.host = SPI3_HOST,
@@ -112,26 +114,33 @@ esp_err_t rc522_init(rc522_handle_t* scanner, gptimer_handle_t* timer_handle){
         printf("scanner is null\n");
     }
     ret = rc522_register_events(*scanner, RC522_EVENT_ANY, rc522_handler, (void*)timer_handle);
+    rc522_power_down();
     printf("Done RC522 Init\n");
     return ret;
 }
 
 esp_err_t myRC522_start(rc522_handle_t* scanner){
     esp_err_t ret;
+    rc522_power_up();
     ret = rc522_start(*scanner);
     if(ret != ESP_OK)   return ret;
     while(1){
         if(correct_key) break;
         vTaskDelay(1000/portTICK_PERIOD_MS);
     }
-    ret = rc522_pause(*scanner);
+    rc522_pause(*scanner);
+    ret = rc522_power_down();
     return ret;
 }
 
 esp_err_t detectRestartTag(rc522_handle_t* scanner){
     esp_err_t ret;
+    rc522_power_up();
     ret = rc522_start(*scanner);
-    if(ret != ESP_OK)   return ret;
+    if(ret != ESP_OK){
+        ESP_LOGI(TAG ,"restart tag return ret");
+//        return ret;
+    }
     while(1){
         if(restart_key) break;
         vTaskDelay(1000/portTICK_PERIOD_MS);

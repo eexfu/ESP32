@@ -26,7 +26,7 @@ typedef enum {
     STATE_DISTANCE,
     STATE_FINISH,
     STATE_STOP,
-    NUM_STATES // 用于枚举计数，非实际状态
+    NUM_STATES
 } State;
 
 // define event enum
@@ -44,7 +44,7 @@ typedef enum {
     EVENT_DISTANCE_FINISHED,
     EVENT_FINISH_FINISHED,
     EVENT_RESTART,
-    NUM_EVENTS // 用于枚举计数，非实际事件
+    NUM_EVENTS
 } Event;
 
 // state transfer definition
@@ -82,10 +82,10 @@ StateFunc stateTable[NUM_STATES] = {
 //********************************************FSM DEFINITION END******************************************
 NRF24_t dev;
 gptimer_handle_t timer_handle;
+gptimer_handle_t timer_handle_audio;
 rc522_handle_t scanner;
-
-mcpwm_cmpr_handle_t servo_piano_handle;
 mcpwm_cmpr_handle_t servo_laser_handle;
+int flag = 0;
 
 esp_err_t init();
 
@@ -93,33 +93,32 @@ void app_main(void) {
     State currentState = STATE_INIT;
     Event event = EVENT_INIT;
 
-    while (currentState != STATE_STOP) {
+    while (!(currentState == STATE_STOP && flag == 1)) {
         currentState = stateTable[currentState](&event);
     }
 }
 
 esp_err_t init(){
     esp_err_t ret;
-//    ret = rc522_power_down(); //TODO fix commenting speaker, nrf, and rc522 parts
-//    if(ret != ESP_OK)   return ret;
+    ret = rc522_power_down(); //TODO fix commenting speaker, nrf, and rc522 parts
+    if(ret != ESP_OK)   return ret;
 
-//    ret = nrf24_init(&dev);
-//    if(ret != ESP_OK)   return ret;
+    ret = nrf24_init(&dev);
+    if(ret != ESP_OK)   return ret;
 
-//    init_spiffs();
+    init_spiffs();
 
     ret = speaker_init(&timer_handle);
     if(ret != ESP_OK)   return ret;
 
-    servo_init(1, &servo_piano_handle);
-    rotate_servo(0, &servo_piano_handle);
+    ret = speaker_init_audio(&timer_handle_audio);
+    if(ret != ESP_OK)   return ret;
 
     servo_init(48, &servo_laser_handle);
     rotate_servo(90, &servo_laser_handle); //block laser
 
-
-//    ret = rc522_init(&scanner);
-//    if(ret != ESP_OK)   return ret;
+    ret = rc522_init(&scanner, &timer_handle_audio);
+    if(ret != ESP_OK)   return ret;
 
     ret = Electromagnet_init();
 
@@ -132,23 +131,13 @@ State doInit(Event* event) {
     if(*event != EVENT_INIT) return STATE_STOP;
 
     if(init() == ESP_OK){
-//        play_speaker_audio("/spiffs/c4.txt", &timer_handle);
-//        vTaskDelay(pdMS_TO_TICKS(500));
-//        play_speaker_audio("/spiffs/c5.txt", &timer_handle);
-//        vTaskDelay(pdMS_TO_TICKS(2000));
-//        play_speaker_audio("/spiffs/d4.txt", &timer_handle);
-//        while(1){
-//            vTaskDelay(pdMS_TO_TICKS(500));
-//        }
         ESP_LOGI(TAG,"done init\n");
-//        *event = EVENT_INIT_FINISHED; //TODO uncomment this and comment out next part
-//        return STATE_NFC_READER;
-
-//        *event = EVENT_SIMON_FINISHED;
-//        return STATE_SIMON_TO_DISTANCE;
-
-        *event = EVENT_PIANO_TO_LASER_FINISHED;
-        return STATE_LASER;
+//        *event = EVENT_SIMON_TO_DISTANCE_FINISHED;
+//        return STATE_DISTANCE;
+//        *event = EVENT_DISTANCE_FINISHED;
+//        return STATE_FINISH;
+        *event = EVENT_INIT_FINISHED;
+        return STATE_NFC_READER;
     }
     ESP_LOGI(TAG,"init fail\n");
     return STATE_INIT;
@@ -159,6 +148,8 @@ State doNFCReader(Event* event){
     if(*event != EVENT_INIT_FINISHED)  return STATE_STOP;
 
     if(myRC522_start(&scanner) == ESP_OK){
+//        *event = EVENT_NFC_TO_PIANO_FINISHED;
+//        return STATE_PIANO;
         *event = EVENT_NFC_READER_FINISHED;
         return STATE_NFC_TO_PIANO;
     }
@@ -176,13 +167,13 @@ State doNFCToPiano(Event* event){
         return STATE_PIANO;
     }
     ESP_LOGI(TAG,"fail NFCToPiano\n");
-    return STATE_PIANO;
+    return STATE_STOP;
 }
 
 State doPiano(Event* event){
     if(*event != EVENT_NFC_TO_PIANO_FINISHED) return STATE_STOP;
 
-    if(isPianoFinished(&timer_handle, &dev) == ESP_OK){
+    if(isPianoFinished(&timer_handle_audio, &dev) == ESP_OK){
         *event = EVENT_PIANO_FINISHED;
         return STATE_PIANO_TO_LASER;
     }
@@ -209,10 +200,9 @@ State doLaser(Event* event){
     bool ret = laserSensorMain();
 
     if (ret == true) {
-        *event = EVENT_LASER_FINISHED;
-        ESP_LOGI(TAG,"Distance done\n");
-        return STATE_LASER_TO_SIMON;
-
+        ESP_LOGI(TAG,"Laser done\n");
+        *event = EVENT_SIMON_FINISHED;
+        return STATE_SIMON_TO_DISTANCE;
     } else {
         ESP_LOGI(TAG,"Not supposed to happen...");
         *event = EVENT_PIANO_TO_LASER_FINISHED;
@@ -221,11 +211,13 @@ State doLaser(Event* event){
 }
 
 State doLaserToSimon(Event* event){
-    return STATE_SIMON;
+    *event = EVENT_SIMON_FINISHED;
+    return STATE_SIMON_TO_DISTANCE;
 }
 
 State doSimon(Event* event){
     ESP_LOGI(TAG,"Simon running...\n");
+    *event = EVENT_SIMON_FINISHED;
     return STATE_SIMON_TO_DISTANCE;
 }
 
@@ -246,9 +238,7 @@ State doDistance(Event* event){
     if (*event != EVENT_SIMON_TO_DISTANCE_FINISHED) return STATE_STOP;
     ESP_LOGI(TAG, "start distance");
 
-    play_sine_start(220, 100, &timer_handle);
-
-    //play_speaker_sine(1000, 10, &timer_handle);
+    play_sine_start(220, 20, &timer_handle);
 
     //call func
     bool ret = irSensorMain(&timer_handle); //fc only returns after game is done
@@ -268,15 +258,38 @@ State doDistance(Event* event){
 
 State doFinish(Event* event){
     ESP_ERROR_CHECK(ElevatorMotor());
+    play_speaker_audio("/spiffs/pass.txt", &timer_handle_audio);
+//    vTaskDelay(pdMS_TO_TICKS(2500));
+//    play_speaker_audio("/spiffs/c4.txt", &timer_handle_audio);
+//    vTaskDelay(pdMS_TO_TICKS(1100));
+//    play_speaker_audio("/spiffs/d4.txt", &timer_handle_audio);
+//    vTaskDelay(pdMS_TO_TICKS(1100));
+//    play_speaker_audio("/spiffs/e4.txt", &timer_handle_audio);
+//    vTaskDelay(pdMS_TO_TICKS(1100));
+//    play_speaker_audio("/spiffs/f4.txt", &timer_handle_audio);
+//    vTaskDelay(pdMS_TO_TICKS(1100));
+//    play_speaker_audio("/spiffs/g4.txt", &timer_handle_audio);
+//    vTaskDelay(pdMS_TO_TICKS(1100));
+//    play_speaker_audio("/spiffs/a4.txt", &timer_handle_audio);
+//    vTaskDelay(pdMS_TO_TICKS(1100));
+//    play_speaker_audio("/spiffs/b4.txt", &timer_handle_audio);
+//    vTaskDelay(pdMS_TO_TICKS(1100));
+//    play_speaker_audio("/spiffs/c5.txt", &timer_handle_audio);
+//    vTaskDelay(pdMS_TO_TICKS(1100));
+    *event = EVENT_FINISH_FINISHED;
     return STATE_STOP;
 }
 
 State doStop(Event* event){
     if(*event != EVENT_FINISH_FINISHED) return STATE_STOP;
 
+    ESP_LOGI(TAG, "start detect restart");
     if(detectRestartTag(&scanner) == ESP_OK){
-        *event = EVENT_RESTART;
+        *event = EVENT_INIT_FINISHED;
         return STATE_NFC_READER;
+    }
+    else{
+        flag = 1;
     }
     return STATE_NFC_READER;
 }

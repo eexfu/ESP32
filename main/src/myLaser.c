@@ -22,7 +22,7 @@ const static char *TAG = "LDR_ADC";
 ---------------------------------------------------------------*/
 #define LDR_ADC                 ADC_CHANNEL_1
 
-#define LDR_ADC_ATTEN           ADC_ATTEN_DB_12 //For range to 3.1V
+#define LDR_ADC_ATTEN           ADC_ATTEN_DB_11 //For range to 3.1V
 
 
 static int adc_raw[10];
@@ -37,12 +37,20 @@ static void example_adc_calibration_deinit(adc_cali_handle_t handle);
 /*---------------------------------------------------------------
         Process data
 ---------------------------------------------------------------*/
-#define THRESHOLD_LDR 1500
+#define THRESHOLD_LDR 2500
+int countConsec = 0;
 bool processLaserData(int value) {
-    ESP_LOGI(TAG, "value= %d", value);
+    ESP_LOGI(TAG, "value= %d, countConsec = %d", value, countConsec);
+
     if (value > THRESHOLD_LDR) {
-        return true;
+        countConsec++;
+        if (countConsec >= 10) {
+            return true;
+        }
+    } else {
+        countConsec = 0;
     }
+
     return false;
 }
 

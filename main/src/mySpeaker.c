@@ -19,11 +19,18 @@
 ESP_STATIC_ASSERT(CALLBACK_INTERVAL_US >= 7, "Timer callback interval is too short");
 
 static const char *TAG = "SDM";
-static int8_t* sine_wave;
+static int8_t* sine_wave = NULL;
 static int number_of_points;
-static int audio_samples_count = 20000;
+static int audio_samples_count = 10000;
 static volatile bool playbackFinished = false;
 static volatile bool playing = false;
+int lastFreq = 0;
+int8_t null;
+
+typedef struct param{
+    char* file_name;
+    gptimer_handle_t* timer_handle;
+}param_t;
 
 static bool IRAM_ATTR timer_callback(gptimer_handle_t timer, const gptimer_alarm_event_data_t *data, void *user_ctx){
     static uint32_t cnt = 0;
@@ -78,6 +85,43 @@ static gptimer_handle_t gptimer_init(void* args)
     return timer_handle;
 }
 
+static gptimer_handle_t gptimer_init_audio(void* args)
+{
+    /* Allocate GPTimer handle */
+    gptimer_handle_t timer_handle;
+    gptimer_config_t timer_cfg = {
+            .clk_src = GPTIMER_CLK_SRC_DEFAULT,
+            .direction = GPTIMER_COUNT_UP,
+            .resolution_hz = TIMER_RESOLUTION,
+    };
+    ESP_ERROR_CHECK(gptimer_new_timer(&timer_cfg, &timer_handle));
+    ESP_LOGI(TAG, "Timer allocated with resolution %d Hz", TIMER_RESOLUTION);
+
+    /* Set the timer alarm configuration */
+    gptimer_alarm_config_t alarm_cfg = {
+            .alarm_count = ALARM_COUNT*10,
+            .reload_count = 0,
+            .flags.auto_reload_on_alarm = true,
+    };
+    ESP_ERROR_CHECK(gptimer_set_alarm_action(timer_handle, &alarm_cfg));
+
+    /* Register the alarm callback */
+    gptimer_event_callbacks_t cbs = {
+            .on_alarm = timer_callback,
+    };
+    ESP_ERROR_CHECK(gptimer_register_event_callbacks(timer_handle, &cbs, args));
+    ESP_LOGI(TAG, "Timer callback registered, interval %d us", ALARM_COUNT*10);
+
+    /* Clear the timer raw count value, make sure it'll count from 0 */
+    ESP_ERROR_CHECK(gptimer_set_raw_count(timer_handle, 0));
+    /* Enable the timer */
+    ESP_ERROR_CHECK(gptimer_enable(timer_handle));
+
+    ESP_LOGI(TAG, "Timer enabled");
+
+    return timer_handle;
+}
+
 static sdm_channel_handle_t sam_init(void)
 {
     /* Allocate sdm channel handle */
@@ -96,11 +140,20 @@ static sdm_channel_handle_t sam_init(void)
     return sdm_chan;
 }
 
+sdm_channel_handle_t sdm_chan;
 esp_err_t speaker_init(gptimer_handle_t* timer_handle){
     /* Initialize sigma-delta modulation on the specific GPIO */
-    sdm_channel_handle_t sdm_chan = sam_init();
+    sdm_chan = sam_init();
     /* Initialize GPTimer and register the timer alarm callback */
     *timer_handle = gptimer_init(sdm_chan);
+    return ESP_OK;
+}
+
+esp_err_t speaker_init_audio(gptimer_handle_t* timer_handle){
+    /* Initialize sigma-delta modulation on the specific GPIO */
+//    sdm_channel_handle_t sdm_chan = sam_init();
+    /* Initialize GPTimer and register the timer alarm callback */
+    *timer_handle = gptimer_init_audio(sdm_chan);
     return ESP_OK;
 }
 
@@ -167,14 +220,19 @@ esp_err_t play_sine_stop(gptimer_handle_t* timer_handle){
     esp_err_t ret;
 
     ret = gptimer_stop(*timer_handle);
-    free(sine_wave);
+    if(sine_wave != &null){
+        free(sine_wave);
+        sine_wave = &null;
+    }
 
     return ret;
 }
 
-int lastFreq = 0;
 void set_sine_wave(int frequency, int amplitude){
-    free(sine_wave);
+    if(sine_wave != &null){
+        free(sine_wave);
+        sine_wave = &null;
+    }
     if (frequency != lastFreq) {
         lastFreq = frequency;
 
@@ -191,8 +249,8 @@ void set_sine_wave(int frequency, int amplitude){
     }
 }
 
-esp_err_t play_speaker_audio(const char* file_name, gptimer_handle_t* timer_handle) {
-    if(playing) {
+esp_err_t play_speaker_audio(char* file_name, gptimer_handle_t* timer_handle) {
+    if(playing){
         return ESP_FAIL;
     } else {
         playing = true;
@@ -233,6 +291,57 @@ esp_err_t play_speaker_audio(const char* file_name, gptimer_handle_t* timer_hand
 
     sine_wave = audio_samples;
     number_of_points = audio_samples_count;
+
+    /* Start the GPTimer */
+    ESP_LOGI(TAG, "Speaker start");
+    ret = xTaskCreate((TaskFunction_t) timer_audio, "TIMER", 1024 * 3, (void*)timer_handle, 2, NULL);
+    return ret;
+}
+
+esp_err_t play_speaker_audio_pass(char* file_name, gptimer_handle_t* timer_handle) {
+    int audio_samples_count_pass = 20000;
+
+    if(playing){
+        return ESP_FAIL;
+    } else {
+        playing = true;
+    }
+
+    FILE* file;
+    int8_t* audio_samples;
+    esp_err_t ret;
+
+    // open file
+    file = fopen(file_name, "r");
+    if (!file) {
+        ESP_LOGE(TAG, "Failed to open file");
+        return ESP_FAIL;
+    }
+
+    // allocate memory
+    audio_samples = (int8_t*)malloc(audio_samples_count_pass * sizeof(int8_t));
+    if (!audio_samples) {
+        ESP_LOGE(TAG, "Failed to allocate memory for audio samples");
+        fclose(file);
+        return ESP_FAIL;
+    }
+
+    // read data
+    int tmp;
+    for(int i = 0; i < audio_samples_count_pass; i++) {
+        if (fscanf(file, "%d", &tmp) != 1) {
+            ESP_LOGE(TAG, "Failed to read audio samples");
+            free(audio_samples);
+            fclose(file);
+            return ESP_FAIL;
+        }
+        audio_samples[i] = (int8_t)tmp;
+    }
+
+    fclose(file);
+
+    sine_wave = audio_samples;
+    number_of_points = audio_samples_count_pass;
 
     /* Start the GPTimer */
     ESP_LOGI(TAG, "Speaker start");
