@@ -9,4 +9,6 @@
 
 #endif //MAIN_MYDCMOTOR_H
 
+esp_err_t Motor_init();
+
 esp_err_t ElevatorMotor();

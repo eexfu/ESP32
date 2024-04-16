@@ -14,19 +14,42 @@
 #define BDC_MCPWM_GPIO_B              5
 #define BDC_EN_GPIO                   6
 
+esp_err_t Motor_init() {
+    gpio_set_direction(BDC_MCPWM_GPIO_A, GPIO_MODE_OUTPUT);
+    gpio_set_direction(BDC_MCPWM_GPIO_B, GPIO_MODE_OUTPUT);
+    gpio_set_direction(BDC_EN_GPIO, GPIO_MODE_OUTPUT);
+
+    gpio_set_level(BDC_EN_GPIO, 0);
+    gpio_set_level(BDC_MCPWM_GPIO_A, 0);
+    gpio_set_level(BDC_MCPWM_GPIO_B, 0);
+
+
+    return ESP_OK;
+}
+
 esp_err_t ElevatorMotor() {
     gpio_set_direction(BDC_MCPWM_GPIO_A, GPIO_MODE_OUTPUT);
     gpio_set_direction(BDC_MCPWM_GPIO_B, GPIO_MODE_OUTPUT);
     gpio_set_direction(BDC_EN_GPIO, GPIO_MODE_OUTPUT);
 
-    gpio_set_level(BDC_EN_GPIO, 1);
-    gpio_set_level(BDC_MCPWM_GPIO_A, 1);
+    gpio_set_level(BDC_EN_GPIO, 1);         //Motor Enable
+
+
+    gpio_set_level(BDC_MCPWM_GPIO_A, 1);    //Motor forward
+    gpio_set_level(BDC_MCPWM_GPIO_B, 0);
+
+    vTaskDelay(pdMS_TO_TICKS(50));            //Motor on for short to get unstuck
+
+    gpio_set_level(BDC_MCPWM_GPIO_A, 0);    //Motor Off
     gpio_set_level(BDC_MCPWM_GPIO_B, 0);
 
 
-    vTaskDelay(pdMS_TO_TICKS(500));
+    gpio_set_level(BDC_MCPWM_GPIO_A, 1);    //Motor forward
+    gpio_set_level(BDC_MCPWM_GPIO_B, 0);
 
-    gpio_set_level(BDC_MCPWM_GPIO_A, 0);
+    vTaskDelay(pdMS_TO_TICKS(500));           //Motor on for elevator rride
+
+    gpio_set_level(BDC_MCPWM_GPIO_A, 0);    //Motor Off
     gpio_set_level(BDC_MCPWM_GPIO_B, 0);
 
     return ESP_OK;

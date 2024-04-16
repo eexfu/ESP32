@@ -121,6 +121,7 @@ esp_err_t init(){
     if(ret != ESP_OK)   return ret;
 
     ret = Electromagnet_init();
+    ESP_ERROR_CHECK(Motor_init());
 
     return ret;
 }
