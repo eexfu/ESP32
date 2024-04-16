@@ -250,6 +250,8 @@ void set_sine_wave(int frequency, int amplitude){
 }
 
 esp_err_t play_speaker_audio(char* file_name, gptimer_handle_t* timer_handle) {
+
+    ESP_LOGI(TAG, "file name: %s", file_name);
     if(playing){
         return ESP_FAIL;
     } else {

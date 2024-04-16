@@ -132,6 +132,19 @@ esp_err_t isPianoFinished(gptimer_handle_t* timer_handle, NRF24_t* dev){
         if(piano_finished)  break;
         vTaskDelay(1000/portTICK_PERIOD_MS);
     }
+    vTaskDelay(pdMS_TO_TICKS(1500));
+    play_speaker_audio("/spiffs/c4.txt", timer_handle);
+    vTaskDelay(pdMS_TO_TICKS(1100));
+    play_speaker_audio("/spiffs/d4.txt", timer_handle);
+    vTaskDelay(pdMS_TO_TICKS(1100));
+    play_speaker_audio("/spiffs/e4.txt", timer_handle);
+    vTaskDelay(pdMS_TO_TICKS(1100));
+    play_speaker_audio("/spiffs/f4.txt", timer_handle);
+    vTaskDelay(pdMS_TO_TICKS(1100));
+    play_speaker_audio("/spiffs/g4.txt", timer_handle);
+    vTaskDelay(pdMS_TO_TICKS(1100));
+    play_speaker_audio("/spiffs/a4.txt", timer_handle);
+    vTaskDelay(pdMS_TO_TICKS(1100));
     return ESP_OK;
 }
 

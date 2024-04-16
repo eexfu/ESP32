@@ -25,7 +25,13 @@ static void rc522_handler(void* arg, esp_event_base_t base, int32_t event_id, vo
                 fflush(stdout);
                 open_solenoid();
                 vTaskDelay(pdMS_TO_TICKS(1000));
+//                rotate_servo(90, &comparator);
+                mcpwm_timer_handle_t timer = servo_init(rc522_servo_pin, &comparator);
+                vTaskDelay(pdMS_TO_TICKS(1500));
+//                rotate_servo(90, comparator);
                 rotate_servo(90, &comparator);
+                mcpwm_timer_start_stop(timer, MCPWM_TIMER_STOP_FULL);
+                mcpwm_timer_disable(timer);
                 vTaskDelay(pdMS_TO_TICKS(1000));
                 close_solenoid();
             }
@@ -34,7 +40,7 @@ static void rc522_handler(void* arg, esp_event_base_t base, int32_t event_id, vo
                 printf("restart key\n");
                 fflush(stdout);
                 restart_key = true;
-                rotate_servo(-90, &comparator);
+//                rotate_servo(-90, &comparator);
             }
             else{
                 printf("wrong key\n");
@@ -42,7 +48,7 @@ static void rc522_handler(void* arg, esp_event_base_t base, int32_t event_id, vo
 //                play_speaker_sine(1000, 127, timer_handle);
                 play_speaker_audio("/spiffs/sine.txt", timer_handle);
                 vTaskDelay(pdMS_TO_TICKS(1000));
-                rotate_servo(-90, &comparator);
+//                rotate_servo(-90, &comparator);
             }
         }
             break;
@@ -100,8 +106,8 @@ esp_err_t rc522_init(rc522_handle_t* scanner, gptimer_handle_t* timer_handle){
 
     esp_err_t ret;
 
-    ret = servo_init(rc522_servo_pin, &comparator);
-    if(ret != ESP_OK)   return ret;
+//    ret = servo_init(rc522_servo_pin, &comparator);
+//    if(ret != ESP_OK)   return ret;
 
     ret = solenoid_int();
     if(ret != ESP_OK)   return ret;

@@ -25,7 +25,7 @@ const static char *TAG = "IR_ADC";
 #define IR_ADC_ATTEN           ADC_ATTEN_DB_11 //For range to 3.1V
 
 #define IR_SAMPLE_PERIOD            (100)
-#define MAX_COUNT                   (3000 / IR_SAMPLE_PERIOD)
+#define MAX_COUNT                   (2000 / IR_SAMPLE_PERIOD)
 
 static int adc_raw[10];
 

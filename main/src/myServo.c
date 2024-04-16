@@ -17,7 +17,7 @@ static inline uint32_t angle_to_compare(int angle)
     return (angle - SERVO_MIN_DEGREE) * (SERVO_MAX_PULSEWIDTH_US - SERVO_MIN_PULSEWIDTH_US) / (SERVO_MAX_DEGREE - SERVO_MIN_DEGREE) + SERVO_MIN_PULSEWIDTH_US;
 };
 
-esp_err_t servo_init(int servo_pin, mcpwm_cmpr_handle_t* comparator) {//copy from MCPWM RC Servo Control Example
+mcpwm_timer_handle_t servo_init(int servo_pin, mcpwm_cmpr_handle_t* comparator) {//copy from MCPWM RC Servo Control Example
     ESP_LOGI(TAG, "Create timer and operator");
     mcpwm_timer_handle_t timer = NULL;
     mcpwm_timer_config_t timer_config = {
@@ -71,7 +71,7 @@ esp_err_t servo_init(int servo_pin, mcpwm_cmpr_handle_t* comparator) {//copy fro
     ESP_ERROR_CHECK(mcpwm_timer_start_stop(timer, MCPWM_TIMER_START_NO_STOP));
 
     ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(*comparator, angle_to_compare(-90)));
-    return ESP_OK;
+    return timer;
 }
 
 void rotate_servo(int angle, mcpwm_cmpr_handle_t* comparator){

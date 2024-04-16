@@ -133,6 +133,8 @@ State doInit(Event* event) {
 
     if(init() == ESP_OK){
         ESP_LOGI(TAG,"done init\n");
+//        *event = EVENT_PIANO_FINISHED;
+//        return STATE_PIANO_TO_LASER;
 //        *event = EVENT_SIMON_TO_DISTANCE_FINISHED;
 //        return STATE_DISTANCE;
 //        *event = EVENT_DISTANCE_FINISHED;
@@ -162,6 +164,9 @@ State doNFCToPiano(Event* event){
     ESP_LOGI(TAG,"start NFCToPiano\n");
     if(*event != EVENT_NFC_READER_FINISHED) return STATE_STOP;
 
+    *event = EVENT_NFC_TO_PIANO_FINISHED;
+    ESP_LOGI(TAG,"done NFCToPiano\n");
+    return STATE_PIANO;
     if(notifyPiano(&dev) == ESP_OK){
         *event = EVENT_NFC_TO_PIANO_FINISHED;
         ESP_LOGI(TAG,"done NFCToPiano\n");
@@ -185,6 +190,7 @@ State doPianoToLaser(Event *event){
     if(*event != EVENT_PIANO_FINISHED)  return STATE_STOP;
 
     rotate_servo(0, &servo_laser_handle);
+    ESP_LOGI(TAG, "rotate servo");
 
     if(isReadyForLaser(&dev) == ESP_OK){
         *event = EVENT_PIANO_TO_LASER_FINISHED;

@@ -28,9 +28,8 @@ esp_err_t Motor_init() {
 }
 
 esp_err_t ElevatorMotor() {
-    gpio_set_direction(BDC_MCPWM_GPIO_A, GPIO_MODE_OUTPUT);
-    gpio_set_direction(BDC_MCPWM_GPIO_B, GPIO_MODE_OUTPUT);
-    gpio_set_direction(BDC_EN_GPIO, GPIO_MODE_OUTPUT);
+
+    ESP_LOGI(TAG, "Motor start");
 
     gpio_set_level(BDC_EN_GPIO, 1);         //Motor Enable
 
@@ -43,14 +42,17 @@ esp_err_t ElevatorMotor() {
     gpio_set_level(BDC_MCPWM_GPIO_A, 0);    //Motor Off
     gpio_set_level(BDC_MCPWM_GPIO_B, 0);
 
+    vTaskDelay(pdMS_TO_TICKS(50));
 
     gpio_set_level(BDC_MCPWM_GPIO_A, 1);    //Motor forward
     gpio_set_level(BDC_MCPWM_GPIO_B, 0);
 
-    vTaskDelay(pdMS_TO_TICKS(500));           //Motor on for elevator rride
+    vTaskDelay(pdMS_TO_TICKS(1000));           //Motor on for elevator rride
 
     gpio_set_level(BDC_MCPWM_GPIO_A, 0);    //Motor Off
     gpio_set_level(BDC_MCPWM_GPIO_B, 0);
+
+    ESP_LOGI(TAG, "Motor end");
 
     return ESP_OK;
 }

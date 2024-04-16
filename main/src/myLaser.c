@@ -50,16 +50,22 @@ bool processLaserData(int value) {
     ESP_LOGI(TAG, "value= %d, threshold %d, countConsec = %d", value, threshold, countConsec);
 
     if (!samplingDone) {
-        thresholdArray[count] = value;
+        //thresholdArray[count] = value;
         count++;
+
         if (count >= SAMPLES_THRESHOLD) {
-            countConsec = 0;
-            int sum = 0;
-            for (int i = 0; i < sizeof(thresholdArray); i++) {
-                sum += thresholdArray[i];
-            }
-            threshold = sum / sizeof(thresholdArray);
+            threshold = value + 300;
+            samplingDone = true;
         }
+
+//        if (count >= SAMPLES_THRESHOLD) {
+//            countConsec = 0;
+//            int sum = 0;
+//            for (int i = 0; i < sizeof(thresholdArray); i++) {
+//                sum += thresholdArray[i];
+//            }
+//            threshold = sum / sizeof(thresholdArray);
+//        }
 
     } else {
 
