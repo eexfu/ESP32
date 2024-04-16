@@ -37,18 +37,41 @@ static void example_adc_calibration_deinit(adc_cali_handle_t handle);
 /*---------------------------------------------------------------
         Process data
 ---------------------------------------------------------------*/
+#define SAMPLES_THRESHOLD 10
 #define THRESHOLD_LDR 2500
-int countConsec = 0;
-bool processLaserData(int value) {
-    ESP_LOGI(TAG, "value= %d, countConsec = %d", value, countConsec);
 
-    if (value > THRESHOLD_LDR) {
-        countConsec++;
-        if (countConsec >= 10) {
-            return true;
+bool samplingDone = false;
+int thresholdArray[SAMPLES_THRESHOLD];
+int threshold = 0;
+int countConsec = 0;
+int count = 0;
+
+bool processLaserData(int value) {
+    ESP_LOGI(TAG, "value= %d, threshold %d, countConsec = %d", value, threshold, countConsec);
+
+    if (!samplingDone) {
+        thresholdArray[count] = value;
+        count++;
+        if (count >= SAMPLES_THRESHOLD) {
+            countConsec = 0;
+            int sum = 0;
+            for (int i = 0; i < sizeof(thresholdArray); i++) {
+                sum += thresholdArray[i];
+            }
+            threshold = sum / sizeof(thresholdArray);
         }
+
     } else {
-        countConsec = 0;
+
+        if (value > threshold) {
+                countConsec++;
+                if (countConsec >= 10) {
+                    return true;
+                }
+            } else {
+                countConsec = 0;
+            }
+
     }
 
     return false;
