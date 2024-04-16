@@ -1,8 +1,8 @@
-    /*
- * SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
+/*
+ * Code based on oneshot-read from esp-idf-v5.2.1 framework, 2022-2023 Espressif Systems (Shanghai) CO LTD
+ * https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/index.html
  */
+
 #include "myIRSensor.h"
 #include <stdio.h>
 #include <stdlib.h>
