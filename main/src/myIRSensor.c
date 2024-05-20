@@ -17,11 +17,11 @@
 #include "esp_adc/adc_cali_scheme.h"
 
 const static char *TAG = "IR_ADC";
-
+static const gpio_num_t solenoid_pin = GPIO_NUM_7;
 /*---------------------------------------------------------------
         ADC General values
 ---------------------------------------------------------------*/
-#define IR_ADC               ADC_CHANNEL_7
+#define IR_ADC                 ADC_CHANNEL_7
 #define IR_ADC_ATTEN           ADC_ATTEN_DB_11 //For range to 3.1V
 
 #define IR_SAMPLE_PERIOD            (100)
@@ -41,7 +41,10 @@ gptimer_handle_t* timer_handle_speaker; //Speaker timer handle (this is the spea
     bool processIRData(int measuredVoltage);
 
     esp_err_t LEDs_init();
-    esp_err_t LEDs_set_value();
+    esp_err_t LEDs_set_value(int value);
+
+    esp_err_t solenoid_init();
+    esp_err_t solenoid_set_value(bool value);
 
 //
 bool irSensorMain(gptimer_handle_t* timer_handle) {
@@ -69,6 +72,10 @@ bool irSensorMain(gptimer_handle_t* timer_handle) {
 
     //-------------LEDs Init---------------//
     ESP_ERROR_CHECK(LEDs_init());
+
+    //-------------Solenoid Init---------------//
+    ESP_ERROR_CHECK(solenoid_init());
+    ESP_ERROR_CHECK(solenoid_set_value(1));
 
     bool retProcess;
     //-------------ADC1 Main Read Loop---------------//
@@ -169,6 +176,22 @@ static void example_adc_calibration_deinit(adc_cali_handle_t handle) {
         return ESP_OK; //TODO check each set level
     }
 
+
+/*---------------------------------------------------------------
+    Solenoid Control
+---------------------------------------------------------------*/
+
+    esp_err_t solenoid_int() {
+        esp_err_t ret;
+        ret = gpio_set_direction(solenoid_pin, GPIO_MODE_OUTPUT);
+        solenoid_set_value(0);
+        return ret;
+    }
+
+    esp_err_t solenoid_set_value(bool value){
+        return gpio_set_level(solenoid_pin, value);
+    }
+
 /*---------------------------------------------------------------
         Data processing
 ---------------------------------------------------------------*/
@@ -190,15 +213,28 @@ int convertToRange(int measuredVoltage) { //Convert voltage into levelValue
 
     return range;
 }
-//TODO place above
-//#define THRESHOLDS  {3300, 2000, 1000, 400, 0};       //TODO find out how to do this correctly
+
+bool started = false;
 int counter = 0;
 int prevRange = 0;
 int currentLevel = 0;
-int correctCode[] = {1, 2, 3, 1};       //TODO make const?
+int correctCode[] = {1, 2, 3, 1};
 int rangeFrequencies[] = {220, 440, 880, 1760};
 
+#define thresholdStart 1000
+
 bool processIRData(int value) {
+
+    if (started == false) {                           //Deactivate Solenoid when pulled out, start acutal game
+        if (value < thresholdStart) {
+            if (counter > 2) {
+                started = true;
+                ESP_ERROR_CHECK(solenoid_set_value(0));
+            } else {
+                counter++;
+            }
+        }
+    }
 
     int range = convertToRange(value);
 

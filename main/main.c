@@ -100,7 +100,7 @@ void app_main(void) {
 
 esp_err_t init(){
     esp_err_t ret;
-    ret = rc522_power_down(); //TODO fix commenting speaker, nrf, and rc522 parts
+    ret = rc522_power_down();
     if(ret != ESP_OK)   return ret;
 
     ret = nrf24_init(&dev);

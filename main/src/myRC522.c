@@ -6,7 +6,6 @@
 
 static const char* TAG = "RC522";
 static const gpio_num_t rc522_reset_pin = GPIO_NUM_21;
-static const gpio_num_t solenoid_pin = GPIO_NUM_7;
 mcpwm_cmpr_handle_t comparator;
 static const int rc522_servo_pin = 1;
 bool correct_key = false;
@@ -23,7 +22,6 @@ static void rc522_handler(void* arg, esp_event_base_t base, int32_t event_id, vo
                 printf("correct key\n");
                 correct_key = true;
                 fflush(stdout);
-                open_solenoid();
                 vTaskDelay(pdMS_TO_TICKS(1000));
 //                rotate_servo(90, &comparator);
                 mcpwm_timer_handle_t timer = servo_init(rc522_servo_pin, &comparator);
@@ -33,7 +31,6 @@ static void rc522_handler(void* arg, esp_event_base_t base, int32_t event_id, vo
                 mcpwm_timer_start_stop(timer, MCPWM_TIMER_STOP_FULL);
                 mcpwm_timer_disable(timer);
                 vTaskDelay(pdMS_TO_TICKS(1000));
-                close_solenoid();
             }
             else if(tag->serial_number == 787332672355){
                 //TODO need to decide the serial number of reset key later
@@ -69,21 +66,6 @@ esp_err_t rc522_power_up(){
     return ret;
 }
 
-esp_err_t solenoid_int() {
-    esp_err_t ret;
-    ret = gpio_set_direction(solenoid_pin, GPIO_MODE_OUTPUT);
-    close_solenoid();
-    return ret;
-}
-
-void open_solenoid(){
-    gpio_set_level(solenoid_pin, 1);
-}
-
-void close_solenoid(){
-    gpio_set_level(solenoid_pin, 0);
-}
-
 esp_err_t rc522_init(rc522_handle_t* scanner, gptimer_handle_t* timer_handle){
     printf("Start RC522 Init\n");
 
@@ -109,8 +91,6 @@ esp_err_t rc522_init(rc522_handle_t* scanner, gptimer_handle_t* timer_handle){
 //    ret = servo_init(rc522_servo_pin, &comparator);
 //    if(ret != ESP_OK)   return ret;
 
-    ret = solenoid_int();
-    if(ret != ESP_OK)   return ret;
 
     ret = rc522_create(&config, scanner);
     if(ret != ESP_OK)   return ret;
