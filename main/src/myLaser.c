@@ -23,7 +23,7 @@ const static char *TAG = "LDR_ADC";
 ---------------------------------------------------------------*/
 #define LDR_ADC                 ADC_CHANNEL_1
 
-#define LDR_ADC_ATTEN           ADC_ATTEN_DB_11 //For range to 3.1V
+#define LDR_ADC_ATTEN           ADC_ATTEN_DB_12 //For range to 3.1V
 
 
 static int adc_raw[10];

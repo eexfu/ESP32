@@ -22,7 +22,7 @@ static const gpio_num_t solenoid_pin = GPIO_NUM_7;
         ADC General values
 ---------------------------------------------------------------*/
 #define IR_ADC                 ADC_CHANNEL_7
-#define IR_ADC_ATTEN           ADC_ATTEN_DB_11 //For range to 3.1V
+#define IR_ADC_ATTEN           ADC_ATTEN_DB_12 //For range to 3.1V
 
 #define IR_SAMPLE_PERIOD            (100)
 #define MAX_COUNT                   (2000 / IR_SAMPLE_PERIOD)
@@ -181,7 +181,7 @@ static void example_adc_calibration_deinit(adc_cali_handle_t handle) {
     Solenoid Control
 ---------------------------------------------------------------*/
 
-    esp_err_t solenoid_int() {
+    esp_err_t solenoid_init() {
         esp_err_t ret;
         ret = gpio_set_direction(solenoid_pin, GPIO_MODE_OUTPUT);
         solenoid_set_value(0);
@@ -230,6 +230,9 @@ bool processIRData(int value) {
             if (counter > 2) {
                 started = true;
                 ESP_ERROR_CHECK(solenoid_set_value(0));
+                ESP_LOGI(TAG, "Solenoid Deactivated");
+                ESP_LOGI(TAG, "Solenoid Deactivated");
+                ESP_LOGI(TAG, "Solenoid Deactivated");
             } else {
                 counter++;
             }

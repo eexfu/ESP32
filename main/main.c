@@ -90,8 +90,8 @@ int flag = 0;
 esp_err_t init();
 
 void app_main(void) {
-    State currentState = STATE_INIT;
-    Event event = EVENT_INIT;
+    State currentState = STATE_SIMON_TO_DISTANCE;
+    Event event = EVENT_SIMON_FINISHED;
 
     while (!(currentState == STATE_STOP && flag == 1)) {
         currentState = stateTable[currentState](&event);
